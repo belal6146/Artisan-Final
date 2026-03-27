@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Artwork } from "@/types/schema";
@@ -15,6 +16,7 @@ interface ArtworkCardProps {
 
 export function ArtworkCard({ artwork, className, priority = false }: ArtworkCardProps) {
     const { convertPrice, t } = useLocale();
+    const [hasError, setHasError] = useState(false);
     
     // Robust image selection: Primary URL > First URL in array > null
     const displayImage = artwork.imageUrl || (artwork.imageUrls && artwork.imageUrls.length > 0 ? artwork.imageUrls[0] : null);
@@ -23,7 +25,7 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
         <div className={cn("group block space-y-4 transition-all duration-500", className)}>
             <Link href={`/artwork/${artwork.id}`} className="block relative">
                 <div className="relative aspect-[4/5] w-full overflow-hidden rounded-none bg-muted hover:bg-muted/80 transition-all duration-500">
-                    {displayImage && displayImage.startsWith('http') ? (
+                    {displayImage && displayImage.startsWith('http') && !hasError ? (
                         <Image
                             src={displayImage}
                             alt={artwork.title}
@@ -32,11 +34,12 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                             className="object-cover grayscale hover:grayscale-0 transition-all duration-1000"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
+                                setHasError(true);
                                 logger.error("Artwork image failed to load", { artworkId: artwork.id, title: artwork.title, url: displayImage });
                             }}
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-secondary/30 text-muted-foreground">
+                        <div className="w-full h-full flex items-center justify-center bg-secondary/30 text-muted-foreground animate-in fade-in duration-1000">
                             <span className="font-serif italic opacity-50 uppercase tracking-[0.2em] text-[10px]">No Artifact Image</span>
                         </div>
                     )}

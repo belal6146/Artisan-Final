@@ -18,7 +18,12 @@ class Logger {
 
         // In a real app, you might send this to a service like Datadog or Sentry
         if (isDev) {
-            console[level](`[${level.toUpperCase()}] ${payload.message}`, payload)
+            const { message, ...context } = payload;
+            if (Object.keys(context).length > 0) {
+                console[level](`[${level.toUpperCase()}] ${message}`, context);
+            } else {
+                console[level](`[${level.toUpperCase()}] ${message}`);
+            }
         } else {
             console[level](JSON.stringify(logEntry))
         }
