@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
 
 import { Input } from "@/components/ui/input";
+import { useLocale } from "@/frontend/contexts/LocaleContext";
 
 interface FilterBarProps {
     filters: { label: string; value: string }[];
@@ -15,6 +16,8 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ filters, activeFilter, onFilterChange, searchTerm, onSearchChange, className }: FilterBarProps) {
+    const { t } = useLocale();
+
     return (
         <div className={cn("flex flex-col sm:flex-row gap-4 justify-between items-center", className)}>
             <div className="flex flex-wrap gap-2">
@@ -24,7 +27,7 @@ export function FilterBar({ filters, activeFilter, onFilterChange, searchTerm, o
                     onClick={() => onFilterChange('all')}
                     className="rounded-full px-4"
                 >
-                    All
+                    {t('all')}
                 </Button>
                 {filters.map((filter) => (
                     <Button
@@ -41,7 +44,7 @@ export function FilterBar({ filters, activeFilter, onFilterChange, searchTerm, o
 
             <div className="w-full sm:w-64">
                 <Input
-                    placeholder="Search by title or artist..."
+                    placeholder={t('search_placeholder')}
                     value={searchTerm}
                     onChange={(e) => onSearchChange(e.target.value)}
                 />

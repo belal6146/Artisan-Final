@@ -6,6 +6,7 @@ import { Artwork } from "@/types/schema";
 import { ArtworkCard } from "@/components/art/ArtworkCard";
 import { FilterBar } from "@/components/art/FilterBar";
 import { Globe } from "lucide-react";
+import { useLocale } from "@/frontend/contexts/LocaleContext";
 
 const FILTERS = [
     { label: 'Painting', value: 'Painting' },
@@ -15,6 +16,7 @@ const FILTERS = [
 ];
 
 export default function ExplorePage() {
+    const { t } = useLocale();
     const [artworks, setArtworks] = useState<Artwork[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState('all');
@@ -47,15 +49,14 @@ export default function ExplorePage() {
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-l-2 border-primary/10 pl-8 pb-4">
                 <div className="space-y-6 max-w-2xl">
                     <h1 className="font-serif text-5xl md:text-8xl font-medium tracking-tighter">
-                        Gallery
+                        {t('gallery_title')}
                     </h1>
                     <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
-                        Emerging artists. Universal talent. 
-                        A silent observation of cultural depth and technical excellence.
+                        {t('gallery_subtitle')}
                     </p>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.4em] uppercase text-primary/60">
-                    <Globe className="h-4 w-4" /> GLOBAL DISCOVERY
+                    <Globe className="h-4 w-4" /> {t('global_discovery')}
                 </div>
             </div>
 
