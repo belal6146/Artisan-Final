@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User-owned content (avatars, artworks, event assets)
+    // Only the owner can write to their own path. 
+    // This enforces the 'Trust and Safety' principle.
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // All other files require auth
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

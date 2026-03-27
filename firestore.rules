@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper to check if the user is the owner of the document (assuming doc ID is UID)
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone can read profiles (needed for discovery)
+      allow read: if true;
+      // Only owner can write
+      allow write: if isOwner(userId);
+
+      // Transactions subcollection
+      match /transactions/{transactionId} {
+        // Only owner can read/write their transactions
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Artworks collection
+    match /artworks/{artworkId} {
+      allow read: if true;
+      // Anyone signed in can create, but only the artist can update/delete
+      allow create: if isSignedIn() && request.resource.data.artistId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.artistId == request.auth.uid;
+    }
+    
+    // Events collection
+    match /events/{eventId} {
+      allow read: if true;
+      // Anyone signed in can create, but only the organizer can update/delete
+      // Exception: allow anyone to update currentAttendees (needed for RSVP increment)
+      // In a real production app, this should be done via a secure Cloud Function instead of client-side increments.
+      allow create: if isSignedIn() && request.resource.data.organizerId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.organizerId == request.auth.uid || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentAttendees']));
+      allow delete: if isSignedIn() && resource.data.organizerId == request.auth.uid;
+    }
+
+    // Collaborations collection
+    match /collaborations/{collabId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    // RSVPs collection
+    match /events/{eventId}/rsvps/{userId} {
+      allow read: if isOwner(userId) || resource.data.organizerId == request.auth.uid;
+      allow write: if isOwner(userId);
+    }
+  }
+}
