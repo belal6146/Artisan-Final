@@ -46,6 +46,17 @@ export interface LogContext {
 }
 
 
+function safeStringify(payload: unknown, space?: number): string {
+    try {
+        return JSON.stringify(payload, null, space);
+    } catch {
+        return JSON.stringify({
+            _serialization: 'failed',
+            hint: 'Circular reference, non-JSON value, or excessive depth in log context',
+        });
+    }
+}
+
 class Logger {
     private isDev = process.env.NODE_ENV === 'development';
 
@@ -70,10 +81,10 @@ class Logger {
             const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[32m';
             console[level](
                 `${color}[${level.toUpperCase()}] ${event}\x1b[0m`,
-                JSON.stringify(logEntry, null, 2)
+                safeStringify(logEntry, 2)
             );
         } else {
-            console[level](JSON.stringify(logEntry));
+            console[level](safeStringify(logEntry));
         }
     }
 

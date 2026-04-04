@@ -16,10 +16,10 @@ export default function MissionPage() {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[160px] opacity-20 pointer-events-none" />
                 
                 <div className="container mx-auto space-y-16 text-center max-w-6xl relative z-10">
-                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter text-foreground animate-in fade-in slide-in-from-bottom-8 duration-1000 leading-[0.85]">
+                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter text-foreground animate-in fade-in slide-in-from-bottom-8 duration-200 leading-[0.85]">
                         {t('mission_title')}
                     </h1>
-                    <p className="max-w-4xl text-2xl md:text-3xl text-muted-foreground font-light leading-relaxed mx-auto italic animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200 opacity-60">
+                    <p className="max-w-4xl text-2xl md:text-3xl text-muted-foreground font-light leading-relaxed mx-auto italic animate-in fade-in slide-in-from-bottom-10 duration-200 delay-75 opacity-60">
                         {t('mission_subtitle')}
                     </p>
                 </div>

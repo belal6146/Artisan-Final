@@ -59,7 +59,7 @@ export default function CollaboratePage() {
     };
 
     return (
-        <div className="container py-24 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div className="container py-24 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-200">
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-l-2 border-primary/10 pl-8 pb-4">
                 <div className="space-y-6 max-w-2xl">
                     <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter">
@@ -90,7 +90,7 @@ export default function CollaboratePage() {
                     </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-200">
                     {collaborations.map((collab) => (
                         <div key={collab.id} className="group border border-border/10 rounded-none overflow-hidden transition-all duration-700 hover:bg-secondary/5">
                             <div className="p-10 space-y-8 h-full flex flex-col justify-between">

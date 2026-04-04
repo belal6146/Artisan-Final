@@ -23,15 +23,15 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
 
                 <div className="container max-w-5xl z-10 text-center space-y-16">
                 <div className="space-y-8">
-                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter text-foreground text-balance animate-in fade-in slide-in-from-bottom-8 duration-1000 leading-[0.85]">
+                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter text-foreground text-balance animate-in fade-in slide-in-from-bottom-8 duration-200 leading-[0.85]">
                         {t('home_hero_title')}
                     </h1>
-                    <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl font-light leading-relaxed mx-auto italic text-pretty animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200 opacity-60">
+                    <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl font-light leading-relaxed mx-auto italic text-pretty animate-in fade-in slide-in-from-bottom-10 duration-200 delay-75 opacity-60">
                         {t('home_hero_subtitle')}
                     </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-400">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-12 duration-200 delay-150">
                     <Link href="/explore">
                         <Button size="lg" className="shadow-2xl">
                             {t('explore_gallery')} <ArrowRight className="ml-2 h-4 w-4" />

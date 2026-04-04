@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, LogOut, Menu } from "lucide-react";
+import { User, LogOut, Menu, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
@@ -11,7 +11,7 @@ import { useLocale } from "@/frontend/contexts/LocaleContext";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function Header() {
-    const { user, logout } = useAuth();
+    const { user, logout, loading } = useAuth();
     const pathname = usePathname();
     const { t } = useLocale();
 
@@ -51,7 +51,9 @@ export function Header() {
                 <div className="flex items-center gap-6">
                     <LocaleSwitcher />
                     <span className="h-6 w-[1px] bg-border/10 hidden sm:block" />
-                    {user ? (
+                    {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/40" aria-label="Loading session" />
+                    ) : user ? (
                         <div className="flex items-center gap-6">
                             <NotificationBell />
                             <Link href={`/profile/${user.uid}`} className="flex items-center gap-2 group">

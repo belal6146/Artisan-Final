@@ -178,8 +178,8 @@ function CheckoutContent() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-secondary/5 py-24 px-6 md:px-12 selection:bg-primary selection:text-primary-foreground animate-in fade-in duration-1000">
-            <div className="bg-background rounded-none shadow-2xl border border-border/10 overflow-hidden max-w-6xl w-full flex flex-col md:flex-row animate-in slide-in-from-bottom-12 duration-1000">
+        <div className="min-h-screen flex items-center justify-center bg-secondary/5 py-24 px-6 md:px-12 selection:bg-primary selection:text-primary-foreground animate-in fade-in duration-200">
+            <div className="bg-background rounded-none shadow-2xl border border-border/10 overflow-hidden max-w-6xl w-full flex flex-col md:flex-row animate-in slide-in-from-bottom-12 duration-200">
                 
                 {/* Order Summary Left Panel */}
                 <div className="bg-primary text-primary-foreground p-12 md:w-[45%] flex flex-col justify-between space-y-24">

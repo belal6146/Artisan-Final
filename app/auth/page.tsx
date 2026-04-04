@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { logger } from "@/backend/lib/logger";
 
-export default function AuthPage() {
+function AuthPageContent() {
     const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState("");
@@ -19,7 +18,6 @@ export default function AuthPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirect = searchParams?.get("redirect") || "/explore";
-    const { user: authUser } = useAuth(); // renamed to avoid conflict
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,7 +65,7 @@ export default function AuthPage() {
             {/* Background elements */}
             <div className="absolute top-1/4 -left-20 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] opacity-40 pointer-events-none" />
             
-            <div className="w-full max-w-lg bg-secondary/5 border border-border/10 p-12 md:p-16 relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="w-full max-w-lg bg-secondary/5 border border-border/10 p-12 md:p-16 relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-200">
                 <div className="text-center mb-16 space-y-6">
                     <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter leading-none">
                         {isLogin ? "Welcome Back." : "The Collective."}
@@ -136,5 +134,19 @@ export default function AuthPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function AuthPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center bg-background">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/30" aria-label="Loading" />
+                </div>
+            }
+        >
+            <AuthPageContent />
+        </Suspense>
     );
 }

@@ -34,7 +34,7 @@ export default function JournalEntryPage() {
 
     if (!entry) {
         return (
-            <div className="container py-40 text-center space-y-8 animate-in fade-in duration-1000">
+            <div className="container py-40 text-center space-y-8 animate-in fade-in duration-200">
                 <div className="w-24 h-24 bg-secondary/10 flex items-center justify-center mx-auto">
                     <BookOpen className="h-10 w-10 text-primary/20" />
                 </div>
@@ -50,7 +50,7 @@ export default function JournalEntryPage() {
     }
 
     return (
-        <article className="container py-32 max-w-4xl animate-in fade-in slide-in-from-bottom-12 duration-1200 pb-64">
+        <article className="container py-32 max-w-4xl animate-in fade-in slide-in-from-bottom-12 duration-200 pb-64">
             <Button variant="ghost" className="h-10 px-0 hover:bg-transparent hover:text-primary text-[10px] font-bold tracking-widest uppercase mb-16 transition-all group" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Back to Journal
             </Button>

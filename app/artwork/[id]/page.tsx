@@ -78,7 +78,7 @@ export default function ArtworkDetailPage() {
     const hasProvenance = artwork.origin || artwork.process || artwork.materials?.length || artwork.timeSpent;
 
     return (
-        <div className="animate-in fade-in duration-700">
+        <div className="animate-in fade-in duration-200">
 
             <div className="container pt-12 pb-4">
                 <Link href="/explore" className="text-[10px] font-bold tracking-[0.4em] uppercase text-muted-foreground/30 hover:text-muted-foreground transition-colors">

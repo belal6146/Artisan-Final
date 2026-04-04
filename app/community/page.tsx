@@ -8,7 +8,7 @@ export default async function CommunityPage() {
     const artists = await getAllArtists();
 
     return (
-        <div className="container py-24 space-y-24 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div className="container py-24 space-y-24 animate-in fade-in slide-in-from-bottom-4 duration-200">
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-l-2 border-primary/10 pl-8 pb-4">
                 <div className="space-y-6 max-w-2xl">
                     <h1 className="font-serif text-5xl md:text-8xl font-medium tracking-tighter">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
 import { logger } from "@/backend/lib/logger";
 
 type Language = "en" | "fr" | "es" | "de";
@@ -358,29 +358,22 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         if (savedCur) setCurrency(savedCur);
     }, []);
 
-    useEffect(() => {
-        // Silent update to operational trace for state transitions if needed, 
-        // but we avoid console.log noise in production code.
-    }, [language, currency]);
-
-    const updateLanguage = (lang: Language) => {
+    const updateLanguage = useCallback((lang: Language) => {
         setLanguage(lang);
         localStorage.setItem("artisan_lang", lang);
         logger.info('USER_UPDATE_SUCCESS', { language: lang, source: 'frontend' });
-    };
+    }, []);
 
-    const updateCurrency = (cur: Currency) => {
+    const updateCurrency = useCallback((cur: Currency) => {
         setCurrency(cur);
         localStorage.setItem("artisan_cur", cur);
         logger.info('USER_UPDATE_SUCCESS', { currency: cur, source: 'frontend' });
-    };
+    }, []);
 
-    const convertPrice = (amount: number, fromCurrency: string = "EUR") => {
-        // Simple mock conversion (Base is always EUR for now)
-        // If from is not EUR, we'd first normalize to EUR, then convert to target
+    const convertPrice = useCallback((amount: number, fromCurrency: string = "EUR") => {
         const amountInEur = fromCurrency === "EUR" ? amount : amount / (CONVERSION_RATES[fromCurrency as Currency] || 1);
         const targetAmount = amountInEur * CONVERSION_RATES[currency];
-        
+
         return {
             amount: targetAmount,
             formatted: `${SYMBOLS[currency]}${targetAmount.toLocaleString(undefined, {
@@ -388,21 +381,26 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
                 maximumFractionDigits: 2
             })} ${currency}`
         };
-    };
+    }, [currency]);
 
-    const t = (key: string): string => {
+    const t = useCallback((key: string): string => {
         return DICTIONARY[language][key] || key;
-    };
+    }, [language]);
 
-    return (
-        <LocaleContext.Provider value={{ 
-            language, 
-            currency, 
-            setLanguage: updateLanguage, 
+    const value = useMemo(
+        () => ({
+            language,
+            currency,
+            setLanguage: updateLanguage,
             setCurrency: updateCurrency,
             convertPrice,
-            t
-        }}>
+            t,
+        }),
+        [language, currency, updateLanguage, updateCurrency, convertPrice, t]
+    );
+
+    return (
+        <LocaleContext.Provider value={value}>
             {children}
         </LocaleContext.Provider>
     );

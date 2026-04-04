@@ -1,21 +1,38 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import {
-    User,
     GoogleAuthProvider,
     signInWithPopup,
     signOut,
     onAuthStateChanged,
     signInWithEmailAndPassword,
-    createUserWithEmailAndPassword
+    createUserWithEmailAndPassword,
+    type User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "@/backend/config/firebase";
 import { syncUserToFirestore } from "@/backend/actions/profile";
 import { logger } from "@/backend/lib/logger";
 
+/** Plain fields only — never put Firebase `User` in React state (cyclic internals break React dev error formatting). */
+export interface AuthUser {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+}
+
+function toAuthUser(u: FirebaseUser): AuthUser {
+    return {
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName,
+        photoURL: u.photoURL,
+    };
+}
+
 interface AuthContextType {
-    user: User | null;
+    user: AuthUser | null;
     loading: boolean;
     signInWithGoogle: () => Promise<void>;
     signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -33,25 +50,31 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<AuthUser | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            setUser(currentUser);
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser ? toAuthUser(currentUser) : null);
+            setLoading(false);
 
             if (currentUser) {
-                // "Database Sync" requirement: Ensure record exists
-                await syncUserToFirestore(currentUser);
+                const plain = toAuthUser(currentUser);
+                void syncUserToFirestore(plain).catch((e: unknown) => {
+                    const message = e instanceof Error ? e.message : String(e);
+                    logger.error("SYSTEM_ERROR", {
+                        message: "syncUserToFirestore failed after auth",
+                        error: message,
+                        source: "frontend",
+                    });
+                });
             }
-
-            setLoading(false);
         });
 
         return () => unsubscribe();
     }, []);
 
-    const signInWithGoogle = async () => {
+    const signInWithGoogle = useCallback(async () => {
         const provider = new GoogleAuthProvider();
         logger.info('AUTH_LOGIN_START', { provider: 'google', source: 'frontend' });
         try {
@@ -61,9 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             logger.error('AUTH_LOGIN_FAILURE', { provider: 'google', error: error.message, source: 'frontend' });
             throw error;
         }
-    };
+    }, []);
 
-    const signInWithEmail = async (email: string, password: string) => {
+    const signInWithEmail = useCallback(async (email: string, password: string) => {
         logger.info('AUTH_LOGIN_START', { provider: 'email', source: 'frontend' });
         try {
             const result = await signInWithEmailAndPassword(auth, email, password);
@@ -72,9 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             logger.error('AUTH_LOGIN_FAILURE', { provider: 'email', error: error.message, source: 'frontend' });
             throw error;
         }
-    };
+    }, []);
 
-    const signUpWithEmail = async (email: string, password: string) => {
+    const signUpWithEmail = useCallback(async (email: string, password: string) => {
         logger.info('AUTH_LOGIN_START', { provider: 'email_signup', source: 'frontend' });
         try {
             const result = await createUserWithEmailAndPassword(auth, email, password);
@@ -84,9 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             logger.error('AUTH_LOGIN_FAILURE', { provider: 'email_signup', error: error.message, source: 'frontend' });
             throw error;
         }
-    };
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         const currentUserId = user?.uid;
         try {
             await signOut(auth);
@@ -94,11 +117,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: any) {
             logger.error('SYSTEM_ERROR', { userId: currentUserId, message: "Standard logout failed", error: error.message, source: 'frontend' });
         }
-    };
+    }, [user?.uid]);
+
+    const value = useMemo(
+        () => ({ user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout }),
+        [user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout }}>
-            {!loading && children}
+        <AuthContext.Provider value={value}>
+            {children}
         </AuthContext.Provider>
     );
 }

@@ -108,7 +108,7 @@ export default function CollaborationDetailPage() {
     );
 
     return (
-        <div className="container py-24 px-6 max-w-7xl animate-in fade-in duration-1000">
+        <div className="container py-24 px-6 max-w-7xl animate-in fade-in duration-200">
             <Button variant="ghost" className="h-10 px-0 hover:bg-transparent hover:text-primary text-[10px] font-bold tracking-widest uppercase transition-all mb-12 group" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Back to Opportunities
             </Button>

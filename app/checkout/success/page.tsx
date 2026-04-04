@@ -17,7 +17,7 @@ function SuccessContent() {
     }, [searchParams]);
 
     return (
-        <div className="min-h-[80vh] flex flex-col items-center justify-center container max-w-2xl text-center space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+        <div className="min-h-[80vh] flex flex-col items-center justify-center container max-w-2xl text-center space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-200">
             <div className="relative">
                 <div className="absolute inset-0 bg-primary/10 rounded-full blur-3xl animate-pulse" />
                 <div className="relative h-24 w-24 bg-primary text-white rounded-full flex items-center justify-center mx-auto shadow-2xl">

@@ -30,7 +30,7 @@ export default function EventsPage() {
     );
 
     return (
-        <div className="container py-24 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        <div className="container py-24 animate-in fade-in slide-in-from-bottom-4 duration-200">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 border-l-2 border-primary/20 pl-8">
                 <div className="space-y-4">
                     <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter leading-none">Gatherings</h1>

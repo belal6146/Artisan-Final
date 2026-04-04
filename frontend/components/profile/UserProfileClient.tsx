@@ -237,7 +237,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
     };
 
     return (
-        <div className="space-y-24 animate-in fade-in duration-1000">
+        <div className="space-y-24 animate-in fade-in duration-200">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row gap-12 items-start md:items-center border-l-2 border-primary/20 pl-12 w-full group/header">
                 <div className="shrink-0">
