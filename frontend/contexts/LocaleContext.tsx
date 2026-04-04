@@ -359,19 +359,20 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        console.log(`[LocaleContext] State Updated: Lang=${language}, Cur=${currency}`);
+        // Silent update to operational trace for state transitions if needed, 
+        // but we avoid console.log noise in production code.
     }, [language, currency]);
 
     const updateLanguage = (lang: Language) => {
         setLanguage(lang);
         localStorage.setItem("artisan_lang", lang);
-        logger.info("Language preference updated", { language: lang });
+        logger.info('USER_RECORD_UPDATED', { language: lang, source: 'frontend' });
     };
 
     const updateCurrency = (cur: Currency) => {
         setCurrency(cur);
         localStorage.setItem("artisan_cur", cur);
-        logger.info("Currency preference updated", { currency: cur });
+        logger.info('USER_RECORD_UPDATED', { currency: cur, source: 'frontend' });
     };
 
     const convertPrice = (amount: number, fromCurrency: string = "EUR") => {

@@ -1,9 +1,76 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // DIAGNOSTIC - OPEN GATES
-    match /{document=**} {
-      allow read, write: if true;
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Artworks Domain
+    match /artworks/{artworkId} {
+      allow read: if true; // Publicly viewable
+      allow create: if isAuthenticated() && request.resource.data.artistId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.artistId == request.auth.uid;
+    }
+
+    // 2. Events/Workshops Domain
+    match /events/{eventId} {
+      allow read: if true; // Publicly viewable
+      allow create: if isAuthenticated() && request.resource.data.organizerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.organizerId == request.auth.uid;
+    }
+
+    // 3. Collaborations Domain
+    match /collaborations/{collabId} {
+      allow read: if true; // Publicly viewable
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      
+      // Applications subcollection
+      match /applications/{appId} {
+        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/collaborations/$(collabId)).data.authorId == request.auth.uid);
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      }
+    }
+
+    // 4. Users & Private Data
+    match /users/{userId} {
+      allow read: if true; // Basic profile is public
+      allow write: if isOwner(userId);
+      
+      // Private User Subcollections
+      match /notifications/{notifId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      match /transactions/{txId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId); // Recorded after purchase
+      }
+      
+      match /journal_entries/{entryId} {
+        allow read: if true; // Artisan journal is public proof of process
+        allow write: if isOwner(userId);
+      }
+    }
+
+    // 5. Global Notifications Collection (Used for real-time alerting)
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated(); // Allowed for system-wide triggering
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // 6. RSVPs
+    match /rsvps/{rsvpId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.organizerId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

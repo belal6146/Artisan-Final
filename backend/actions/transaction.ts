@@ -8,6 +8,7 @@ interface TransactionData {
     type: 'buy' | 'sell' | 'rent';
     itemId: string;
     itemTitle: string;
+    imageUrl?: string;
     amount: number;
     currency: string;
 }
@@ -16,7 +17,7 @@ export async function recordTransaction(uid: string, data: TransactionData) {
     if (!uid) throw new Error("User ID is required");
 
     try {
-        logger.info("Recording transaction", { uid, type: data.type, itemId: data.itemId });
+        logger.info('COMMERCE_CHECKOUT_SUCCESS', { userId: uid, type: data.type, itemId: data.itemId, source: 'backend' });
 
         await addDoc(collection(db, "users", uid, "transactions"), {
             ...data,
@@ -25,7 +26,7 @@ export async function recordTransaction(uid: string, data: TransactionData) {
 
         return { success: true };
     } catch (error: any) {
-        logger.error("Failed to record transaction", { uid, error: error.message });
+        logger.error('SYSTEM_ERROR', { message: "Failed to record transaction", uid, error: error.message, source: 'backend' });
         return { success: false, error: error.message };
     }
 }

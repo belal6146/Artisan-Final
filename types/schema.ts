@@ -98,3 +98,13 @@ export interface Collaboration {
     // Ethical Commerce
     ecoGoals?: string[]; // Sustainability goals for the project
 }
+
+export interface CollaborationApplication {
+    id: string;
+    collaborationId: string;
+    userId: string;
+    userName: string;
+    message: string;
+    status: 'Pending' | 'Accepted' | 'Rejected';
+    createdAt: string;
+}

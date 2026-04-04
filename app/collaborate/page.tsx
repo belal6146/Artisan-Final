@@ -4,27 +4,59 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MapPin, DollarSign, RefreshCcw, Briefcase } from "lucide-react";
-import { getCollaborations } from "@/backend/actions/collaboration";
+import { Loader2, MapPin, DollarSign, RefreshCcw, Briefcase, ArrowRight } from "lucide-react";
+import { getCollaborations, applyToCollaboration } from "@/backend/actions/collaboration";
 import { Collaboration } from "@/types/schema";
+import { useAuth } from "@/frontend/contexts/AuthContext";
+import { logger } from "@/backend/lib/logger";
 
 export default function CollaboratePage() {
+    const { user } = useAuth();
     const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
     const [loading, setLoading] = useState(true);
+    const [applyingId, setApplyingId] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
             try {
                 const data = await getCollaborations();
                 setCollaborations(data);
-            } catch (error) {
-                console.error(error);
+                logger.debug('COLLAB_POST_FLAGGED', { count: data.length, message: "Fetched collabs", source: 'frontend' });
+            } catch (error: any) {
+                logger.error('SYSTEM_ERROR', { error: error.message, source: 'frontend' });
             } finally {
                 setLoading(false);
             }
         }
         load();
     }, []);
+
+    const handleConnect = async (collab: Collaboration) => {
+        if (!user) {
+            logger.warn('PERMISSION_DENIED', { message: "Auth required for collab", source: 'frontend' });
+            return;
+        }
+        
+        setApplyingId(collab.id);
+        try {
+            await applyToCollaboration({
+                collaborationId: collab.id,
+                userId: user.uid,
+                userName: user.displayName || "A fellow Artisan",
+                message: "Interested in this collaboration opportunity."
+            });
+            logger.info('COLLAB_INTEREST_SUBMITTED', { 
+                collabId: collab.id, 
+                authorId: collab.authorId, 
+                applicantId: user.uid,
+                source: 'frontend' 
+            });
+        } catch (e: any) {
+            logger.error('SYSTEM_ERROR', { error: e.message, source: 'frontend' });
+        } finally {
+            setApplyingId(null);
+        }
+    };
 
     return (
         <div className="container py-24 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -44,87 +76,93 @@ export default function CollaboratePage() {
             </div>
 
             {loading ? (
-                <div className="flex justify-center items-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <div className="flex flex-col items-center justify-center py-40 text-muted-foreground animate-pulse">
+                    <Loader2 className="h-8 w-8 animate-spin mb-4 opacity-20" />
+                    <p className="text-[10px] font-bold tracking-[0.3em] uppercase">Searching Opportunities</p>
                 </div>
             ) : collaborations.length === 0 ? (
-                <div className="text-center py-20 bg-secondary/10 rounded-2xl border border-border/50">
-                    <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-                    <h3 className="text-xl font-medium mb-2">No opportunities yet</h3>
-                    <p className="text-muted-foreground mb-6">Be the first to post a collaboration request.</p>
-                    <Button variant="outline" asChild>
-                        <Link href="/collaborate/create">Create Post</Link>
-                    </Button>
+                <div className="text-center py-40 border border-dashed border-border/20">
+                    <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-6 opacity-20" />
+                    <h3 className="font-serif text-2xl italic text-muted-foreground">The collective calls are currently silent.</h3>
+                    <p className="text-muted-foreground mb-8">Be the first to post a collaboration request.</p>
+                    <Link href="/collaborate/create">
+                        <Button variant="outline" className="h-14 px-10 rounded-none text-[11px] font-bold tracking-[0.3em] uppercase">Initialise Call</Button>
+                    </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                     {collaborations.map((collab) => (
-                        <div key={collab.id} className="group relative bg-card border border-border/50 rounded-xl overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col items-start p-6">
-                            <div className="flex justify-between items-start w-full mb-4">
-                                <Badge variant="secondary" className="font-medium">
-                                    {collab.type}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground bg-secondary/50 px-2 py-1 rounded-full">
-                                    {new Date(collab.createdAt).toLocaleDateString()}
-                                </span>
-                            </div>
-
-                            <h3 className="font-serif text-xl font-medium mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                                {collab.title}
-                            </h3>
-
-                            <p className="text-muted-foreground text-sm mb-6 line-clamp-3 flex-grow">
-                                {collab.description}
-                            </p>
-
-                            <div className="w-full space-y-3 pt-4 border-t border-border/50">
-                                <div className="flex items-center gap-2 text-sm text-foreground/80">
-                                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                                    <span>{collab.location} ({collab.locationType})</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-foreground/80">
-                                    {collab.compensation.type === 'Money' ? (
-                                        <DollarSign className="h-4 w-4 text-green-600" />
-                                    ) : (
-                                        <RefreshCcw className="h-4 w-4 text-blue-600" />
-                                    )}
-                                    <span className="font-medium">
-                                        {collab.compensation.type === 'Money'
-                                            ? `${collab.compensation.currency} ${collab.compensation.amount}`
-                                            : collab.compensation.type === 'Exchange'
-                                                ? 'Skill Exchange'
-                                                : 'Unpaid / Volunteer'}
-                                    </span>
-                                </div>
-                                {collab.compensation.details && (
-                                    <p className="text-xs text-muted-foreground pl-6">
-                                        Includes: {collab.compensation.details}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="mt-6 flex items-center gap-3 w-full">
-                                <div className="h-8 w-8 rounded-full bg-secondary overflow-hidden">
-                                    {/* Avatar placeholder if no image */}
-                                    {collab.authorAvatarUrl ? (
-                                        <img src={collab.authorAvatarUrl} alt={collab.authorName} className="h-full w-full object-cover" />
-                                    ) : (
-                                        <div className="h-full w-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                                            {collab.authorName.charAt(0)}
+                        <div key={collab.id} className="group border border-border/10 rounded-none overflow-hidden transition-all duration-700 hover:bg-secondary/5">
+                            <div className="p-10 space-y-8 h-full flex flex-col justify-between">
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-start w-full">
+                                        <div className="text-[10px] font-bold tracking-[0.4em] uppercase text-primary/60 border border-primary/10 px-3 py-1">
+                                            {collab.type}
                                         </div>
-                                    )}
+                                        <span className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-30">
+                                            {new Date(collab.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+
+                                    <h3 className="font-serif text-2xl md:text-3xl font-medium leading-tight group-hover:text-primary transition-colors cursor-pointer">
+                                        <Link href={`/collaborate/${collab.id}`}>{collab.title}</Link>
+                                    </h3>
+
+                                    <p className="text-muted-foreground font-light leading-relaxed line-clamp-4 italic">
+                                        {collab.description}
+                                    </p>
                                 </div>
-                                <span className="text-sm font-medium text-muted-foreground">
-                                    By {collab.authorName}
-                                </span>
-                                <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="ml-auto hover:bg-primary/10 hover:text-primary"
-                                    onClick={() => alert(`Connection request sent to ${collab.authorName}! They will be notified via their registered email.`)}
-                                >
-                                    Connect
-                                </Button>
+
+                                <div className="space-y-6">
+                                    <div className="w-full space-y-4 pt-8 border-t border-border/10">
+                                        <div className="flex items-center gap-4 text-[11px] font-bold tracking-[0.1em] uppercase text-muted-foreground">
+                                            <MapPin className="h-3.5 w-3.5" />
+                                            <span>{collab.location} ({collab.locationType})</span>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-[11px] font-bold tracking-[0.1em] uppercase text-muted-foreground">
+                                            {collab.compensation.type === 'Money' ? (
+                                                <DollarSign className="h-3.5 w-3.5" />
+                                            ) : (
+                                                <RefreshCcw className="h-3.5 w-3.5" />
+                                            )}
+                                            <span>
+                                                {collab.compensation.type === 'Money'
+                                                    ? `${collab.compensation.currency} ${collab.compensation.amount}`
+                                                    : collab.compensation.type === 'Exchange'
+                                                        ? 'Skill Exchange'
+                                                        : 'Unpaid'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 bg-secondary/20 border border-border/10 overflow-hidden shrink-0">
+                                                {collab.authorAvatarUrl ? (
+                                                    <img src={collab.authorAvatarUrl} alt={collab.authorName} className="h-full w-full object-cover grayscale" />
+                                                ) : (
+                                                    <div className="h-full w-full bg-primary/5 flex items-center justify-center text-[10px] font-bold text-primary/40 uppercase">
+                                                        {collab.authorName.charAt(0)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">{collab.authorName}</p>
+                                                <p className="text-[9px] font-bold tracking-widest text-primary/30 uppercase">Leader</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <Link href={`/collaborate/${collab.id}`}>
+                                            <Button 
+                                                size="sm" 
+                                                variant="ghost" 
+                                                className="hover:bg-primary/5 text-[9px] font-bold tracking-[0.3em] uppercase group/btn"
+                                            >
+                                                DETAILS <ArrowRight className="ml-2 h-3 w-3 group-hover/btn:translate-x-1 transition-transform" />
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ))}

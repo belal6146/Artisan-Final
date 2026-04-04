@@ -25,18 +25,18 @@ export default function EventsPage() {
     }, []);
 
     return (
-        <div className="container py-24 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-l-2 border-primary/10 pl-8 pb-4">
-                <div className="space-y-6 max-w-2xl">
-                    <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter">
+        <div className="container py-48 px-6 md:px-12 space-y-24 animate-in fade-in slide-in-from-bottom-12 duration-1200">
+            <div className="flex flex-col md:flex-row items-baseline justify-between gap-12 border-l-2 border-primary/20 pl-16 pb-12">
+                <div className="space-y-8 max-w-3xl">
+                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter leading-none text-foreground">
                         Gatherings
                     </h1>
-                    <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
+                    <p className="text-2xl md:text-3xl text-muted-foreground font-light italic leading-relaxed opacity-60">
                         Intimate workshops, critique sessions, and community walks. 
                         Safe spaces for the curation of craft.
                     </p>
                 </div>
-                <Button size="lg" className="h-16 px-12 rounded-none bg-primary text-[11px] font-bold tracking-[0.2em] uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all" asChild>
+                <Button size="lg" className="px-16" asChild>
                     <Link href="/events/create">
                         <Plus className="mr-2 h-4 w-4" /> HOST GATHERING
                     </Link>
@@ -44,21 +44,23 @@ export default function EventsPage() {
             </div>
 
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                     {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-96 bg-secondary/20 rounded-xl animate-pulse border border-border/50" />
+                        <div key={i} className="h-96 bg-secondary/10 border border-border/10 animate-pulse" />
                     ))}
                 </div>
             ) : events.length === 0 ? (
-                <div className="py-24 text-center bg-secondary/10 rounded-3xl border border-dashed border-border flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-                        <Plus className="h-8 w-8 text-primary" />
+                <div className="py-64 text-center border-t border-border/10 flex flex-col items-center justify-center space-y-12">
+                    <div className="w-24 h-24 bg-secondary/20 flex items-center justify-center">
+                        <Plus className="h-10 w-10 text-primary/40" />
                     </div>
-                    <h3 className="text-xl font-medium mb-2">No events scheduled</h3>
-                    <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                        Be the first to host a workshop or gathering for the community.
-                    </p>
-                    <Button size="lg" className="rounded-full" asChild>
+                    <div className="space-y-6">
+                        <h3 className="font-serif text-5xl md:text-6xl tracking-tighter italic text-muted-foreground opacity-60 leading-none">The gatherings are a clean slate.</h3>
+                        <p className="text-xl text-muted-foreground max-w-xl mx-auto italic font-light opacity-40">
+                            “Be the first to host a workshop or gathering for the community. Shape the legacy of craft in your region.”
+                        </p>
+                    </div>
+                    <Button size="lg" className="px-20" asChild>
                         <Link href="/events/create">
                             Host the First Event
                         </Link>

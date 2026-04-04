@@ -53,37 +53,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signInWithGoogle = async () => {
         const provider = new GoogleAuthProvider();
+        logger.info('AUTH_LOGIN_STARTED', { provider: 'google', source: 'frontend' });
         try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error("Error signing in with Google", error);
+            const result = await signInWithPopup(auth, provider);
+            logger.info('AUTH_LOGIN_SUCCESS', { userId: result.user.uid, provider: 'google', source: 'frontend' });
+        } catch (error: any) {
+            logger.error('AUTH_LOGIN_FAILURE', { provider: 'google', error: error.message, source: 'frontend' });
             throw error;
         }
     };
 
     const signInWithEmail = async (email: string, password: string) => {
+        logger.info('AUTH_LOGIN_STARTED', { provider: 'email', source: 'frontend' });
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-        } catch (error) {
-            console.error("Error signing in with email", error);
+            const result = await signInWithEmailAndPassword(auth, email, password);
+            logger.info('AUTH_LOGIN_SUCCESS', { userId: result.user.uid, provider: 'email', source: 'frontend' });
+        } catch (error: any) {
+            logger.error('AUTH_LOGIN_FAILURE', { provider: 'email', error: error.message, source: 'frontend' });
             throw error;
         }
     };
 
     const signUpWithEmail = async (email: string, password: string) => {
+        logger.info('AUTH_LOGIN_STARTED', { provider: 'email_signup', source: 'frontend' });
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
-        } catch (error) {
-            console.error("Error signing up with email", error);
+            const result = await createUserWithEmailAndPassword(auth, email, password);
+            logger.info('USER_RECORD_CREATED', { userId: result.user.uid, source: 'frontend' });
+            logger.info('AUTH_LOGIN_SUCCESS', { userId: result.user.uid, provider: 'email_signup', source: 'frontend' });
+        } catch (error: any) {
+            logger.error('AUTH_LOGIN_FAILURE', { provider: 'email_signup', error: error.message, source: 'frontend' });
             throw error;
         }
     };
 
     const logout = async () => {
+        const currentUserId = user?.uid;
         try {
             await signOut(auth);
-        } catch (error) {
-            console.error("Error signing out", error);
+            logger.info('AUTH_LOGOUT', { userId: currentUserId, source: 'frontend' });
+        } catch (error: any) {
+            logger.error('SYSTEM_ERROR', { userId: currentUserId, error: error.message, source: 'frontend' });
         }
     };
 

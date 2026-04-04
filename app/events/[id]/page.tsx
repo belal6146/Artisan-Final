@@ -5,19 +5,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Users, Loader2, Check, Edit2 } from "lucide-react";
+import { Calendar, MapPin, Users, Loader2, Check, Edit2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventById } from "@/backend/db/events";
 import { createRSVP } from "@/backend/actions/rsvp";
 import { PriceBreakdown } from "@/components/ui/price-breakdown";
 import { EcoTag } from "@/components/ui/eco-tag";
 import { checkUserRSVP } from "@/backend/db/rsvps";
+import { useLocale } from "@/frontend/contexts/LocaleContext";
 import { Event } from "@/types/schema";
 
 export default function EventDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const { user } = useAuth();
+    const { convertPrice } = useLocale();
 
     const [event, setEvent] = useState<Event | null>(null);
     const [loading, setLoading] = useState(true);
@@ -113,62 +115,69 @@ export default function EventDetailPage() {
     const spotsLeft = event.capacity - event.currentAttendees;
 
     return (
-        <div className="container py-8 lg:py-12 max-w-5xl">
-            <Link href="/events" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
-                ← Back to Events
-            </Link>
+        <div className="container py-24 px-6 max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="mb-12 border-l-2 border-primary/20 pl-8 space-y-6">
+                <Button variant="ghost" className="h-10 px-0 hover:bg-transparent hover:text-primary text-[10px] font-bold tracking-widest uppercase transition-all group" onClick={() => router.back()}>
+                    <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Back to Gatherings
+                </Button>
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                            <span className="text-[10px] font-bold tracking-[0.3em] uppercase bg-primary/5 text-primary/60 px-3 py-1">
+                                {event.type}
+                            </span>
+                        </div>
+                        <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter leading-none">
+                            {event.title}
+                        </h1>
+                        <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
+                            A curated gathering by {event.organizerName}
+                        </p>
+                    </div>
+                    {user && user.uid === event.organizerId && (
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={`/events/${id}/edit`}>
+                                <Edit2 className="h-4 w-4 mr-2" />
+                                EDIT EVENT
+                            </Link>
+                        </Button>
+                    )}
+                </div>
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24">
                 {/* Main Content */}
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="relative aspect-video w-full rounded-sm overflow-hidden bg-secondary/20">
+                <div className="lg:col-span-8 space-y-16">
+                    <div className="relative aspect-[21/9] w-full rounded-none overflow-hidden bg-secondary/10 border border-border/5">
                         {event.imageUrl && (
                             <Image 
                                 src={event.imageUrl} 
                                 alt={event.title} 
                                 fill 
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                                sizes="(max-width: 768px) 100vw, 800px"
                                 className="object-cover" 
                                 priority 
                             />
                         )}
                     </div>
 
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded">
-                                    {event.type}
-                                </span>
-                            </div>
-                            {user && user.uid === event.organizerId && (
-                                <Button variant="outline" size="sm" asChild>
-                                    <Link href={`/events/${id}/edit`}>
-                                        <Edit2 className="h-4 w-4 mr-2" />
-                                        Edit Event
-                                    </Link>
-                                </Button>
-                            )}
+                    <div className="space-y-12">
+                        <div className="prose prose-slate max-w-none">
+                            <p className="text-xl text-muted-foreground/80 font-light leading-relaxed whitespace-pre-wrap">
+                                {event.description}
+                            </p>
                         </div>
-                        <h1 className="font-serif text-3xl md:text-4xl font-medium tracking-tight mb-4">
-                            {event.title}
-                        </h1>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Hosted by {event.organizerName}
-                        </p>
-                        <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        </p>
 
                         {/* Ethical Commerce Section */}
                         {(event.priceBreakdown || (event.ecoTags && event.ecoTags.length > 0)) && (
-                            <div className="pt-8 border-t border-border/40 space-y-8">
+                            <div className="pt-16 border-t border-border/10 space-y-12">
                                 {event.ecoTags && event.ecoTags.length > 0 && (
-                                    <div className="space-y-3">
-                                        <h3 className="font-serif text-lg font-medium flex items-center gap-2">
-                                            <span className="w-1 h-4 bg-green-500 rounded-full inline-block" />
-                                            Sustainability Impact
-                                        </h3>
-                                        <div className="flex flex-wrap gap-2">
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.3em] uppercase opacity-40">
+                                            <span className="w-8 h-px bg-primary/20" />
+                                            Ethical Credentials
+                                        </div>
+                                        <div className="flex flex-wrap gap-3">
                                             {event.ecoTags.map((tag) => (
                                                 <EcoTag key={tag} tag={tag} />
                                             ))}
@@ -177,7 +186,11 @@ export default function EventDetailPage() {
                                 )}
 
                                 {event.priceBreakdown && (
-                                    <div className="space-y-3">
+                                    <div className="space-y-6 pt-8 border-t border-border/5">
+                                         <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.3em] uppercase opacity-40">
+                                            <span className="w-8 h-px bg-primary/20" />
+                                            Value Distribution
+                                        </div>
                                         <PriceBreakdown breakdown={event.priceBreakdown} currency={event.currency} />
                                     </div>
                                 )}
@@ -187,86 +200,95 @@ export default function EventDetailPage() {
                 </div>
 
                 {/* Sidebar / RSVP Card */}
-                <div className="space-y-6">
-                    <div className="sticky top-24 border-none bg-secondary/10 rounded-lg p-6 space-y-6">
-                        <div className="space-y-4">
-                            <div className="flex items-start gap-3">
-                                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                                <div>
-                                    <div className="font-medium">
+                <div className="lg:col-span-4 space-y-8">
+                    <div className="sticky top-24 bg-secondary/5 border border-border/10 p-10 space-y-10 group/sidebar">
+                        <div className="space-y-8">
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 bg-primary/5 flex items-center justify-center rounded-none group-hover/sidebar:bg-primary/10 transition-colors">
+                                    <Calendar className="h-4 w-4 text-primary/60" />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[10px] font-bold tracking-widest uppercase opacity-40">Chronological context</div>
+                                    <div className="font-serif text-lg">
                                         {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
+                                    <div className="text-sm text-muted-foreground italic font-light">
                                         {startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} ({event.timezone})
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3">
-                                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                                <div>
-                                    <div className="font-medium">{event.locationType === 'online' ? 'Online Event' : 'In Person'}</div>
-                                    <div className="text-sm text-muted-foreground">{event.location}</div>
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 bg-primary/5 flex items-center justify-center rounded-none group-hover/sidebar:bg-primary/10 transition-colors">
+                                    <MapPin className="h-4 w-4 text-primary/60" />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[10px] font-bold tracking-widest uppercase opacity-40">Physical Coordinates</div>
+                                    <div className="font-serif text-lg">{event.locationType === 'online' ? 'Global Projection' : 'Intimate Studio'}</div>
+                                    <div className="text-sm text-muted-foreground italic font-light">{event.location}</div>
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3">
-                                <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-                                <div>
-                                    <div className="font-medium">
-                                        {event.currentAttendees} / {event.capacity} attending
+                            <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 bg-primary/5 flex items-center justify-center rounded-none group-hover/sidebar:bg-primary/10 transition-colors">
+                                    <Users className="h-4 w-4 text-primary/60" />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[10px] font-bold tracking-widest uppercase opacity-40">Collective Density</div>
+                                    <div className="font-serif text-lg">
+                                        {event.currentAttendees} / {event.capacity} artisans
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        {isSoldOut ? 'Event is full' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`}
+                                    <div className="text-sm text-muted-foreground italic font-light">
+                                        {isSoldOut ? 'Capacity reached' : `${spotsLeft} allocation${spotsLeft !== 1 ? 's' : ''} available`}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-border/10">
-                            <div className="flex justify-between items-center mb-4">
-                                <span className="text-sm font-medium">Price</span>
-                                <span className="text-xl font-serif">
-                                    {event.price === 0 ? 'Free' : `${event.currency} ${event.price}`}
-                                </span>
+                        <div className="pt-10 border-t border-border/10 space-y-8">
+                            <div className="flex justify-between items-end">
+                                <div className="space-y-1">
+                                    <div className="text-[10px] font-bold tracking-widest uppercase opacity-40">Access Contribution</div>
+                                    <div className="font-serif text-3xl">
+                                        {event.price === 0 ? 'Pro-Bono' : convertPrice(event.price, event.currency).formatted}
+                                    </div>
+                                </div>
                             </div>
 
                             {error && (
-                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                                <div className="p-4 bg-red-500/5 border border-red-500/10 text-red-600 text-xs font-bold tracking-widest uppercase">
                                     {error}
                                 </div>
                             )}
 
                             {success && (
-                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm flex items-center gap-2">
+                                <div className="p-4 bg-green-500/5 border border-green-500/10 text-green-600 text-xs font-bold tracking-widest uppercase flex items-center gap-2">
                                     <Check className="h-4 w-4" />
-                                    Successfully registered!
+                                    RELAY SUCCESSFUL
                                 </div>
                             )}
 
                             {hasRSVP ? (
                                 <Button
-                                    className="w-full"
-                                    size="lg"
-                                    disabled
+                                    className="w-full h-16 pointer-events-none"
                                     variant="outline"
                                 >
                                     <Check className="mr-2 h-4 w-4" />
-                                    You're Registered
+                                    ACCESS GRANTED
                                 </Button>
                             ) : (
                                 <Button
-                                    className="w-full"
+                                    className="w-full shadow-2xl"
                                     size="lg"
                                     disabled={isSoldOut || reserving}
                                     onClick={handleRSVP}
                                 >
-                                    {isSoldOut ? 'Event Full' : (reserving ? 'Registering...' : 'Register for Event')}
+                                    {isSoldOut ? 'CAPACITY REACHED' : (reserving ? 'RESERVING...' : 'REGISTER FOR GATHERING')}
                                 </Button>
                             )}
 
-                            <p className="text-xs text-center text-muted-foreground mt-3">
-                                {hasRSVP ? 'Check your email for event details' : 'Free registration via Artisan'}
+                            <p className="text-[9px] font-bold tracking-widest text-center text-muted-foreground/40 uppercase">
+                                {hasRSVP ? 'Check your chronicle for event details' : 'Secure direct registration via Artisan'}
                             </p>
                         </div>
                     </div>

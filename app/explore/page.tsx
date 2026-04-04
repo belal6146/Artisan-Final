@@ -7,6 +7,7 @@ import { ArtworkCard } from "@/components/art/ArtworkCard";
 import { FilterBar } from "@/components/art/FilterBar";
 import { Globe } from "lucide-react";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
+import { logger } from "@/backend/lib/logger";
 
 const FILTERS = [
     { label: 'Painting', value: 'Painting' },
@@ -27,8 +28,9 @@ export default function ExplorePage() {
             try {
                 const data = await getArtworks();
                 setArtworks(data);
-            } catch (err) {
-                console.error(err);
+                logger.debug('ARTWORK_FETCH_SUCCESS', { count: data.length, source: 'frontend' });
+            } catch (err: any) {
+                logger.error('ARTWORK_FETCH_FAILED', { error: err.message, source: 'frontend' });
             } finally {
                 setLoading(false);
             }
@@ -45,17 +47,17 @@ export default function ExplorePage() {
     });
 
     return (
-        <div className="container py-24 space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-l-2 border-primary/10 pl-8 pb-4">
-                <div className="space-y-6 max-w-2xl">
-                    <h1 className="font-serif text-5xl md:text-8xl font-medium tracking-tighter">
+        <div className="container py-48 px-6 md:px-12 space-y-24 animate-in fade-in slide-in-from-bottom-12 duration-1200">
+            <div className="flex flex-col md:flex-row items-baseline justify-between gap-12 border-l-2 border-primary/20 pl-16 pb-12">
+                <div className="space-y-8 max-w-3xl">
+                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter leading-none">
                         {t('gallery_title')}
                     </h1>
-                    <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
+                    <p className="text-2xl md:text-3xl text-muted-foreground font-light italic leading-relaxed opacity-60">
                         {t('gallery_subtitle')}
                     </p>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.4em] uppercase text-primary/60">
+                <div className="flex items-center gap-4 text-[10px] font-bold tracking-[0.4em] uppercase text-primary/40 leading-none">
                     <Globe className="h-4 w-4" /> {t('global_discovery')}
                 </div>
             </div>
@@ -70,7 +72,7 @@ export default function ExplorePage() {
 
             {loading ? (
                 // "Calm" Skeleton Grid
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     {Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="space-y-3">
                             <div className="aspect-[4/5] bg-secondary/30 rounded-sm animate-pulse" />
@@ -80,7 +82,7 @@ export default function ExplorePage() {
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     {filteredArtworks.map((artwork) => (
                         <ArtworkCard key={artwork.id} artwork={artwork} />
                     ))}

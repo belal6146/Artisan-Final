@@ -31,12 +31,15 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                             alt={artwork.title || "Untitled Artwork"}
                             fill
                             priority={priority}
-                            className="object-cover grayscale hover:grayscale-0 transition-all duration-1000"
+                            className="object-cover grayscale hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
                                 setHasError(true);
-                                logger.error(`Artwork image failure: ${artwork.title || 'Untitled'} (${artwork.id || 'N/A'}) [URL: ${displayImage}]`, { 
-                                    timestamp: new Date().toISOString() 
+                                logger.error('CONTENT_FLAGGED', { 
+                                    message: `Artwork image failure: ${artwork.title || 'Untitled'}`,
+                                    artworkId: artwork.id,
+                                    imageUrl: displayImage,
+                                    source: 'frontend' 
                                 });
                             }}
                         />

@@ -62,7 +62,8 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
                     await recordTransaction(user.uid, {
                         type: 'buy',
                         itemId: searchParams.get("itemId") || 'real_item_id',
-                        itemTitle: `${type === 'event' ? 'Event Ticket' : 'Artwork'} Purchase`,
+                        itemTitle: searchParams.get("title") || `${type === 'event' ? 'Event Ticket' : 'Artwork'} Purchase`,
+                        imageUrl: searchParams.get("imageUrl") || "",
                         amount: paymentIntent.amount / 100,
                         currency: paymentIntent.currency.toUpperCase()
                     });
@@ -113,15 +114,16 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
             <Button
                 disabled={isLoading || !stripe || !elements}
                 id="submit"
-                className="w-full h-16 rounded-none bg-primary text-[11px] font-bold tracking-[0.3em] uppercase shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+                size="lg"
+                className="w-full shadow-2xl"
             >
                 {isLoading ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Processing...
+                        PROCESSING SECURE RELAY...
                     </div>
                 ) : (
-                    "Confirm Secure Payment"
+                    "CONFIRM SECURE ACQUISITION"
                 )}
             </Button>
 
@@ -172,78 +174,85 @@ function CheckoutContent() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#fafafa] py-12 px-4 selection:bg-slate-200">
-            <div className="bg-white rounded-none shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden max-w-5xl w-full flex flex-col md:flex-row animate-in fade-in slide-in-from-bottom-8 duration-1000">
+        <div className="min-h-screen flex items-center justify-center bg-secondary/5 py-24 px-6 md:px-12 selection:bg-primary selection:text-primary-foreground animate-in fade-in duration-1000">
+            <div className="bg-background rounded-none shadow-2xl border border-border/10 overflow-hidden max-w-6xl w-full flex flex-col md:flex-row animate-in slide-in-from-bottom-12 duration-1000">
                 
-                {/* Order Summary Left Panal */}
-                <div className="bg-slate-900 text-white p-10 md:w-[45%] flex flex-col justify-between">
-                    <div className="space-y-12">
-                        <div className="flex items-center gap-3 text-slate-400 group">
-                            <Lock className="h-4 w-4 transition-colors group-hover:text-blue-400" />
-                            <span className="text-sm font-medium tracking-wide group-hover:text-slate-200 transition-colors uppercase">Secure Artisan Checkout</span>
+                {/* Order Summary Left Panel */}
+                <div className="bg-primary text-primary-foreground p-12 md:w-[45%] flex flex-col justify-between space-y-24">
+                    <div className="space-y-16">
+                        <div className="flex items-center gap-4 text-primary-foreground/40 group/lock">
+                            <Lock className="h-4 w-4 transition-colors group-hover/lock:text-primary-foreground" />
+                            <span className="text-[10px] font-bold tracking-[0.4em] uppercase group-hover/lock:text-primary-foreground transition-colors leading-none">Secure Acquisition</span>
                         </div>
                         
-                        <div className="space-y-6">
-                            <div>
-                                <p className="text-slate-400 text-xs uppercase tracking-[0.2em] mb-3">Order Type</p>
-                                <h3 className="text-2xl font-serif capitalize text-slate-100">{type === 'artwork' ? 'Curated Artwork' : 'Community Workshop'}</h3>
+                        <div className="space-y-10">
+                            <div className="space-y-4">
+                                <p className="text-primary-foreground/40 text-[10px] font-bold tracking-[0.4em] uppercase leading-none">Order Architecture</p>
+                                <h3 className="text-4xl md:text-5xl font-serif tracking-tighter leading-none capitalize">{type === 'artwork' ? 'Curated Masterpiece' : 'Artisan Workshop'}</h3>
                             </div>
                             
-                            <div>
-                                <p className="text-slate-400 text-xs uppercase tracking-[0.2em] mb-3">Total Amount</p>
-                                <div className="text-5xl font-serif text-white tracking-tight flex items-baseline gap-2">
-                                    <span className="text-3xl opacity-50 font-sans">€</span>
+                            <div className="space-y-6">
+                                <p className="text-primary-foreground/40 text-[10px] font-bold tracking-[0.4em] uppercase leading-none">Economic Protocol</p>
+                                <div className="text-6xl md:text-7xl font-serif tracking-tighter flex items-baseline gap-4 leading-none">
+                                    <span className="text-2xl opacity-40 font-sans tracking-normal">GBP</span>
                                     <span>Calculated</span>
                                 </div>
-                                <p className="text-slate-500 text-sm mt-3 leading-relaxed">
-                                    Includes all service fees and secure handling. Tax calculated based on shipping/billing region.
+                                <p className="text-primary-foreground/40 text-sm font-light italic leading-relaxed max-w-sm">
+                                    “Includes all service architecture and secure human-to-human handling. Every transaction supports the global artisan movement.”
                                 </p>
                             </div>
                         </div>
                     </div>
                     
-                    <div className="space-y-4 text-[13px] text-slate-400 mt-16 pt-8 border-t border-slate-800">
-                        <div className="flex justify-between">
-                            <span>Reference</span>
-                            <span className="font-mono text-slate-200 uppercase tracking-tighter">{sessionId.split('_')[1] || sessionId}</span>
+                    <div className="space-y-6 text-[10px] font-bold tracking-[0.4em] uppercase text-primary-foreground/40 pt-10 border-t border-primary-foreground/10">
+                        <div className="flex justify-between items-center">
+                            <span>Reference Block</span>
+                            <span className="font-mono text-primary-foreground">{sessionId.split('_')[1]?.toUpperCase() || sessionId.toUpperCase()}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                             <span>Platform Status</span>
-                            <span className="text-blue-400 flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                                Payment Ready
+                            <span className="text-primary-foreground flex items-center gap-3">
+                                <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground animate-pulse" />
+                                ACQUISITION READY
                             </span>
                         </div>
-                        <p className="pt-6 text-slate-500 font-light leading-relaxed italic">
-                            Connecting artisans directly to patrons through the decentralized gallery network.
-                        </p>
                     </div>
                 </div>
 
                 {/* Right Panel - Stripe Form */}
-                <div className="p-10 md:w-[55%] bg-white">
+                <div className="p-12 md:w-[55%] bg-background space-y-12">
                     <Elements 
                         stripe={stripePromise} 
                         options={{
                             clientSecret,
                             appearance: {
-                                theme: 'stripe',
+                                theme: undefined,
                                 variables: {
-                                    colorPrimary: '#0f172a',
-                                    colorBackground: '#ffffff',
-                                    colorText: '#1e293b',
-                                    colorDanger: '#df1b41',
+                                    colorPrimary: 'hsl(var(--primary))',
+                                    colorBackground: 'hsl(var(--background))',
+                                    colorText: 'hsl(var(--foreground))',
+                                    colorDanger: 'hsl(var(--destructive))',
                                     fontFamily: 'Inter, system-ui, sans-serif',
-                                    spacingUnit: '4px',
-                                    borderRadius: '8px',
+                                    spacingUnit: '6px',
+                                    borderRadius: '0px',
                                 },
                                 rules: {
                                     '.Input': {
-                                        border: '1px solid #e2e8f0',
+                                        border: '1px solid hsl(var(--border)/0.2)',
                                         boxShadow: 'none',
+                                        padding: '16px',
+                                        fontSize: '14px',
                                     },
                                     '.Input:focus': {
-                                        border: '1px solid #0f172a',
+                                        border: '1px solid hsl(var(--primary))',
+                                    },
+                                    '.Label': {
+                                        color: 'hsl(var(--muted-foreground))',
+                                        fontWeight: '700',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.2em',
+                                        fontSize: '10px',
+                                        marginBottom: '8px',
                                     }
                                 }
                             }

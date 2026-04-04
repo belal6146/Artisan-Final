@@ -11,6 +11,9 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/backend/config/firebase";
 import { Upload, X } from "lucide-react";
 import Image from "next/image";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select-minimal";
 
 export default function CreateEventPage() {
     const router = useRouter();
@@ -147,10 +150,9 @@ export default function CreateEventPage() {
                 <form onSubmit={handleSubmit} className="space-y-6 border border-border p-6 rounded-lg bg-card">
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Event Title</label>
-                        <input
+                        <Input
                             name="title"
                             required
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             placeholder="e.g. Clay Modelling for Beginners"
                         />
                     </div>
@@ -194,71 +196,65 @@ export default function CreateEventPage() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Event Type</label>
-                        <select
+                        <Select
                             name="type"
                             required
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         >
                             <option value="Workshop">Workshop</option>
                             <option value="Class">Class</option>
                             <option value="Gathering">Gathering</option>
                             <option value="Exhibition">Exhibition</option>
-                        </select>
+                        </Select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Date</label>
-                            <input
+                            <Input
                                 name="date"
                                 type="date"
                                 required
                                 min={new Date().toISOString().split('T')[0]}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Time</label>
-                            <input
+                            <Input
                                 name="time"
                                 type="time"
                                 required
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             />
                         </div>
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Duration (hours)</label>
-                        <input
+                        <Input
                             name="duration"
                             type="number"
                             min="0.5"
                             step="0.5"
                             defaultValue="2"
                             required
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         />
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Location Type</label>
-                        <select
+                        <Select
                             name="locationType"
                             required
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         >
                             <option value="inPerson">In Person</option>
                             <option value="online">Online</option>
-                        </select>
+                        </Select>
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Location</label>
-                        <input
+                        <Input
                             name="location"
                             required
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             placeholder="Address or Meeting Link"
                         />
                     </div>
@@ -266,24 +262,22 @@ export default function CreateEventPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Capacity</label>
-                            <input
+                            <Input
                                 name="capacity"
                                 type="number"
                                 min="1"
                                 required
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                 placeholder="20"
                             />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Price (€, Free if 0)</label>
-                            <input
+                            <Input
                                 name="price"
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 required
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                 placeholder="0"
                             />
                         </div>
@@ -291,11 +285,10 @@ export default function CreateEventPage() {
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Description</label>
-                        <textarea
+                        <Textarea
                             name="description"
                             required
                             rows={4}
-                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                             placeholder="What will participants learn?"
                         />
                     </div>

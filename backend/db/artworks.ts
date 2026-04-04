@@ -16,10 +16,14 @@ export async function getArtworks(maxResults: number = 20): Promise<Artwork[]> {
         const querySnapshot = await getDocs(q);
         const artworks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Artwork));
 
-        logger.info("Fetched published artworks", { count: artworks.length });
+        logger.info('ARTWORK_VISIBILITY_CHANGED', { count: artworks.length, source: 'backend' });
         return artworks;
     } catch (error: any) {
-        logger.error(`Error fetching artworks: ${error.message || error}`, { stack: error.stack });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Failed fetching published artworks", 
+            error: error.message, 
+            source: 'backend' 
+        });
         return [];
     }
 }
@@ -33,7 +37,11 @@ export async function getArtworkById(id: string): Promise<Artwork | undefined> {
         }
         return undefined;
     } catch (error: any) {
-        logger.error(`Error fetching artwork by ID (${id}): ${error.message || error}`);
+        logger.error('SYSTEM_ERROR', { 
+            message: `Failed to fetch individual artwork ${id}`, 
+            error: error.message, 
+            source: 'backend' 
+        });
         return undefined;
     }
 }
@@ -42,10 +50,14 @@ export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> 
         const q = query(collection(db, "artworks"), where("artistId", "==", artistId));
         const querySnapshot = await getDocs(q);
         const artworks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Artwork));
-        console.log("🔍 [DB] Fetched URLs:", artworks.map(a => `${a.title}: ${a.imageUrl?.substring(0, 50)}...`));
         return artworks;
     } catch (error: any) {
-        logger.error("Error fetching user artworks", { error: error.message, artistId });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Failed fetching artist artworks", 
+            artistId,
+            error: error.message, 
+            source: 'backend' 
+        });
         return [];
     }
 }

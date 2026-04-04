@@ -8,6 +8,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { storage } from "@/backend/config/firebase";
 import { cn } from "@/frontend/lib/utils";
+import { logger } from "@/backend/lib/logger";
 
 interface ArtworkImageUploadProps {
     imageUrls: string[];
@@ -25,7 +26,12 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
 
         const files = Array.from(e.target.files);
         if (imageUrls.length + files.length > maxImages) {
-            alert(`You can only upload up to ${maxImages} images.`);
+            logger.warn('PERMISSION_DENIED', { 
+                message: "Max images exceeded", 
+                limit: maxImages, 
+                current: imageUrls.length, 
+                source: 'frontend' 
+            });
             return;
         }
 
@@ -34,6 +40,7 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
 
         try {
             for (const file of files) {
+                logger.debug('ARTWORK_UPLOAD_STARTED', { fileName: file.name, source: 'frontend' });
                 // Determine file path: users/{uid}/artworks/{timestamp}_{random}_{filename}
                 const timestamp = Date.now();
                 const random = Math.random().toString(36).substring(2, 8);
@@ -42,12 +49,12 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
                 await uploadBytes(storageRef, file);
                 const downloadUrl = await getDownloadURL(storageRef);
                 newUrls.push(downloadUrl);
+                logger.info('ARTWORK_UPLOAD_SUCCESS', { fileName: file.name, source: 'frontend' });
             }
 
             onImagesChange([...imageUrls, ...newUrls]);
-        } catch (error) {
-            console.error("Upload failed", error);
-            alert("Failed to upload images. Please try again.");
+        } catch (error: any) {
+            logger.error('ARTWORK_UPLOAD_FAILURE', { error: error.message, source: 'frontend' });
         } finally {
             setUploading(false);
             // Reset input

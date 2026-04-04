@@ -47,8 +47,8 @@ function SuccessContent() {
                         </Link>
                     </Button>
                     <Button asChild variant="outline" size="lg" className="h-14 px-10 rounded-none text-[11px] font-bold tracking-[0.2em] uppercase border-border/10">
-                        <Link href="/">
-                            VIEW RECEIPT <ArrowRight className="ml-2 h-4 w-4" />
+                        <Link href="/profile/me?tab=history">
+                            VIEW TRANSCRIPT <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                     </Button>
                 </div>

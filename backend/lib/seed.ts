@@ -1,6 +1,6 @@
-
 import { db } from "@/backend/config/firebase";
 import { collection, doc, writeBatch } from "firebase/firestore";
+import { logger } from "@/backend/lib/logger";
 const MOCK_ARTISTS = [
     {
         uid: "artist1",
@@ -32,5 +32,5 @@ export async function seedDatabase() {
     // MOCK_EVENTS...
 
     await batch.commit();
-    console.log("Database seeded successfully (Minimal)");
+    logger.info('USER_RECORD_CREATED', { message: "Database seeded successfully (Minimal)", source: 'backend' });
 }

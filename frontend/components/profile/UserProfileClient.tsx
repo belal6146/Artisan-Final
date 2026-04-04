@@ -9,16 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { User } from "@/types";
 import { ArtworkCard } from "@/components/art/ArtworkCard";
 import { cn } from "@/frontend/lib/utils";
-import { Settings, Edit2, History, Grid, Loader2, Calendar, Heart, BookOpen, Check, ArrowRight } from "lucide-react";
+import { Settings, Edit2, History, Grid, Loader2, Calendar, Heart, BookOpen, Check, ArrowRight, Users } from "lucide-react";
 import { getEventsByOrganizer } from "@/backend/db/events";
 import { collection, query, getDocs } from "firebase/firestore"; // Still needed for reading subcollection (Client Fetch)
 import { db } from "@/backend/config/firebase";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { ArtworkImageUpload } from "@/components/ui/artwork-image-upload";
+import { logger } from "@/backend/lib/logger";
 import { updateUserProfile } from "@/backend/actions/profile";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 interface ProfileProps {
@@ -40,21 +41,23 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
     const [attendingEvents, setAttendingEvents] = useState<any[]>([]);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [userEvents, setUserEvents] = useState<any[]>([]); // Hosting
+    const [userCollaborations, setUserCollaborations] = useState<any[]>([]); // NEW
     const [journalEntries, setJournalEntries] = useState<any[]>([]); // NEW: REAL JOURNAL DATA
 
     const refreshProfileData = async () => {
         if (!user) return;
         try {
-            console.log("🔄 Refreshing comprehensive profile data for:", profile.uid);
-            
+            const targetUid = profile.uid === 'me' ? user.uid : profile.uid;
+            logger.debug('ARTWORK_FETCH_SUCCESS', { message: "Refreshing profile", userId: targetUid, source: 'frontend' });
+
             // 1. Fetch Artworks
             const { getArtworksByArtist } = await import("@/backend/db/artworks");
-            const freshArtworks = await getArtworksByArtist(profile.uid === 'me' ? user.uid : profile.uid);
+            const freshArtworks = await getArtworksByArtist(targetUid);
             setUserArtworks(freshArtworks);
 
             // 2. Fetch Hosted Events
             const { getEventsByOrganizer } = await import("@/backend/db/events");
-            const hosted = await getEventsByOrganizer(profile.uid === 'me' ? user.uid : profile.uid);
+            const hosted = await getEventsByOrganizer(targetUid);
             setUserEvents(hosted);
 
             // 3. Fetch Registered/Attending Events
@@ -73,8 +76,13 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
             // 5. Fetch Studio Journal
             const { getJournalEntries } = await import("@/backend/actions/journal");
-            const entries = await getJournalEntries(profile.uid === 'me' ? user.uid : profile.uid);
+            const entries = await getJournalEntries(targetUid);
             setJournalEntries(entries);
+
+            // 6. Fetch Collaborations
+            const { getCollaborationsByAuthorId } = await import("@/backend/actions/collaboration");
+            const colabs = await getCollaborationsByAuthorId(targetUid);
+            setUserCollaborations(colabs);
 
         } catch (e) {
             console.error("Failed to refresh profile data:", e);
@@ -93,7 +101,16 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
     const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [isAddingArtwork, setIsAddingArtwork] = useState(false);
     const [isAddingJournal, setIsAddingJournal] = useState(false); // NEW
-    const [activeTab, setActiveTab] = useState<'collection' | 'journal' | 'events' | 'history'>('collection');
+    
+    // Unified Tab handling: URL parameter takes precedence
+    const searchParams = useSearchParams();
+    const queryTab = searchParams?.get('tab');
+    const validTabs = ['collection', 'journal', 'events', 'collaborations', 'history'];
+    const initialTab = (queryTab && validTabs.includes(queryTab)) ? queryTab as any : 'collection';
+
+    const [activeTab, setActiveTab] = useState<'collection' | 'journal' | 'events' | 'collaborations' | 'history'>(initialTab);
+
+
 
     const [newArtwork, setNewArtwork] = useState({
         title: '',
@@ -123,11 +140,11 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
             const { checkoutUrl } = await res.json();
             if (checkoutUrl) {
+                logger.info('COMMERCE_CHECKOUT_STARTED', { userId: user.uid, itemId: profile.uid, source: 'frontend' });
                 router.push(checkoutUrl);
             }
-        } catch (e) {
-            console.error(e);
-            alert("Payment gateway failed to initialize. Please try again.");
+        } catch (e: any) {
+            logger.error('COMMERCE_PAYMENT_FAILED', { userId: user.uid, error: e.message, source: 'frontend' });
             setSupporting(false);
         }
     };
@@ -135,18 +152,25 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
     const handleAddJournalEntry = async () => {
         if (!user) return;
         setJournalStatus('saving');
-        const { createJournalEntry } = await import("@/backend/actions/journal");
-        const result = await createJournalEntry(user.uid, newJournal);
-        if (result.success) {
-            setJournalStatus('success');
-            await refreshProfileData();
-            setTimeout(() => {
-                setIsAddingJournal(false);
-                setJournalStatus('idle');
-                setNewJournal({ title: '', content: '', imageUrl: '' });
-            }, 1000);
-        } else {
+        try {
+            const { createJournalEntry } = await import("@/backend/actions/journal");
+            const result = await createJournalEntry(user.uid, newJournal);
+            if (result.success) {
+                logger.info('USER_RECORD_UPDATED', { message: "Journal entry created", userId: user.uid, source: 'frontend' });
+                setJournalStatus('success');
+                await refreshProfileData();
+                setTimeout(() => {
+                    setIsAddingJournal(false);
+                    setJournalStatus('idle');
+                    setNewJournal({ title: '', content: '', imageUrl: '' });
+                }, 1000);
+            } else {
+                setJournalStatus('error');
+                logger.error('SYSTEM_ERROR', { message: "Failed to create journal entry", error: result.error, source: 'frontend' });
+            }
+        } catch (error: any) {
             setJournalStatus('error');
+            logger.error('SYSTEM_ERROR', { message: "Journal entry unexpected error", error: error.message, source: 'frontend' });
         }
     };
 
@@ -157,13 +181,14 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         const result = await updateUserProfile(user.uid, { bio, location, avatarUrl });
 
         if (result.success) {
+            logger.info('USER_RECORD_UPDATED', { userId: user.uid, source: 'frontend' });
             setStatus('success');
             setTimeout(() => {
                 setIsEditing(false);
                 setStatus('idle');
             }, 1000);
         } else {
-            console.error(result.error);
+            logger.error('SYSTEM_ERROR', { message: "Failed to save profile", error: result.error, source: 'frontend' });
             setStatus('error');
             setTimeout(() => setStatus('idle'), 3000);
         }
@@ -186,13 +211,14 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                 artistId: user.uid,
                 artistName: profile.displayName || "Anonymous",
                 location: location,
-                currency: "GBP", // Match user screenshot
+                currency: "GBP", 
                 isForSale: newArtwork.isForSale
             });
 
             if (result.success) {
+                logger.info('ARTWORK_UPLOAD_SUCCESS', { userId: user.uid, artworkId: result.id, source: 'frontend' });
                 setArtworkStatus('success');
-                await refreshProfileData(); // REFRESH ENTIRE PROFILE DATA
+                await refreshProfileData(); 
                 setTimeout(() => {
                     setIsAddingArtwork(false);
                     setArtworkStatus('idle');
@@ -200,29 +226,31 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                 }, 1000);
             } else {
                 setArtworkStatus('error');
+                logger.error('ARTWORK_UPLOAD_FAILURE', { error: result.error, source: 'frontend' });
                 setTimeout(() => setArtworkStatus('idle'), 3000);
             }
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            logger.error('ARTWORK_UPLOAD_FAILURE', { error: e.message, source: 'frontend' });
             setArtworkStatus('error');
+            setTimeout(() => setArtworkStatus('idle'), 3000);
         }
     };
 
     return (
-        <div className="space-y-12">
+        <div className="space-y-24 animate-in fade-in duration-1000">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row gap-8 items-start md:items-center border-b border-border pb-12 w-full">
+            <div className="flex flex-col md:flex-row gap-12 items-start md:items-center border-l-2 border-primary/20 pl-12 w-full group/header">
                 <div className="shrink-0">
-                    <div className="relative w-40 h-40 overflow-hidden bg-muted/20 border border-border/10 group">
+                    <div className="relative w-48 h-48 overflow-hidden bg-secondary/10 border border-border/10">
                         <Image
                             src={avatarUrl || profile.avatarUrl || profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.displayName}`}
                             alt={profile.displayName || "User"}
                             fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            className="object-cover grayscale transition-all duration-700 group-hover:grayscale-0"
+                            sizes="(max-width: 768px) 100vw, 200px"
+                            className="object-cover grayscale transition-all duration-1000 group-hover/header:grayscale-0 group-hover/header:scale-105"
                         />
                         {isOwnProfile && isEditing && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm animate-in fade-in zoom-in-95">
                                 <ImageUpload
                                     currentImageUrl={avatarUrl}
                                     onImageUploaded={setAvatarUrl}
@@ -232,73 +260,74 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                     </div>
                 </div>
 
-                <div className="space-y-4 flex-1 w-full">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h1 className="text-4xl font-serif font-medium tracking-tight mb-1">
+                <div className="space-y-6 flex-1 w-full">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                        <div className="space-y-2">
+                            <h1 className="text-5xl md:text-8xl font-serif font-medium tracking-tighter leading-none">
                                 {profile.displayName || "Anonymous User"}
                             </h1>
-                            <div className="text-muted-foreground flex items-center gap-2">
+                            <div className="text-muted-foreground flex items-center gap-4 text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">
                                 {isEditing ? (
                                     <Input
                                         value={location}
                                         onChange={(e) => setLocation(e.target.value)}
-                                        className="h-8 w-48"
+                                        className="h-10 w-48"
                                     />
                                 ) : (
                                     <span>{location}</span>
                                 )}
-                                <span>•</span>
-                                <span className="capitalize">{profile.role || "Member"}</span>
+                                <span className="w-1 h-1 bg-primary/20 rounded-full" />
+                                <span>{profile.role || "Ardent Member"}</span>
                             </div>
                         </div>
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 shrink-0">
                             {isOwnProfile ? (
-                                <Button variant="ghost" size="icon" onClick={() => setIsEditing(!isEditing)}>
-                                    {isEditing ? <Check className="h-4 w-4" /> : <Edit2 className="h-4 w-4" />}
+                                <Button variant="outline" className="h-14 px-8" onClick={() => setIsEditing(!isEditing)}>
+                                    {isEditing ? <Check className="h-4 w-4 mr-2" /> : <Edit2 className="h-4 w-4 mr-2" />}
+                                    {isEditing ? "FINALIZE" : "EDIT PROFILE"}
                                 </Button>
                             ) : (
-                                <div className="flex gap-3">
+                                <div className="flex gap-4">
                                     <Button 
-                                        className="gap-2 h-12 px-8 rounded-none bg-primary text-[11px] font-bold tracking-[0.2em] uppercase transition-all hover:scale-105 active:scale-95 shadow-xl"
+                                        className="shadow-2xl"
                                         onClick={handleSupport}
                                         disabled={supporting}
                                     >
-                                        {supporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4 fill-current" />}
-                                        {supporting ? "Processing..." : "Support Artisan (£5)"}
+                                        {supporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4 mr-2" />}
+                                        {supporting ? "RELAYING..." : "SUPPORT ARTISAN"}
                                     </Button>
-                                    <Button variant="outline" className="h-12 px-8 rounded-none text-[11px] font-bold tracking-[0.2em] uppercase" asChild>
-                                        <Link href="/collaborate">Connect</Link>
+                                    <Button variant="outline" className="h-16 px-10" asChild>
+                                        <Link href="/collaborate">CONNECT</Link>
                                     </Button>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="max-w-xl">
+                    <div className="max-w-2xl bg-secondary/5 p-8 border-l border-border/10">
                         {isEditing ? (
                             <Textarea
                                 value={bio}
                                 onChange={(e) => setBio(e.target.value)}
-                                className="resize-none"
-                                rows={3}
+                                className="bg-background"
+                                placeholder="Share your creative mission..."
                             />
                         ) : (
-                            <p className="text-lg font-light leading-relaxed">
-                                {bio}
+                            <p className="text-xl font-light leading-relaxed italic text-muted-foreground">
+                                “{bio}”
                             </p>
                         )}
                     </div>
 
                     {isEditing && (
-                        <div className="flex gap-2">
-                            <Button onClick={handleSave} size="sm" disabled={status === 'saving'}>
+                        <div className="flex gap-4 animate-in slide-in-from-left-4">
+                            <Button onClick={handleSave} className="h-12 text-[10px]" disabled={status === 'saving'}>
                                 {status === 'saving' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {status === 'success' && "Saved!"}
-                                {status === 'error' && "Failed"}
-                                {status === 'idle' && "Save Changes"}
+                                {status === 'success' && "RELAY SUCCESSFUL"}
+                                {status === 'error' && "RELAY FAILED"}
+                                {status === 'idle' && "SAVE CHANGES"}
                             </Button>
-                            <Button variant="outline" onClick={() => setIsEditing(false)} size="sm" disabled={status === 'saving'}>Cancel</Button>
+                            <Button variant="ghost" onClick={() => setIsEditing(false)} className="h-12 text-[10px]" disabled={status === 'saving'}>CANCEL</Button>
                         </div>
                     )}
                 </div>
@@ -306,302 +335,181 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
             {/* Dashboard Tabs (Only if Own Profile) */}
             {isOwnProfile && (
-                <div className="grid grid-cols-2 md:grid-cols-4 border border-border/10 divide-x divide-border/10">
-                    <div className="p-10 space-y-4">
-                        <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/40">Total Acquisitions</div>
-                        <div className="text-4xl font-serif font-light">£{totalSpent.toLocaleString()}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 border border-border/10 divide-x divide-border/10 bg-secondary/5">
+                    <div className="p-12 space-y-4">
+                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none">Aquisitions</div>
+                        <div className="text-5xl font-serif font-light tracking-tighter">£{totalSpent.toLocaleString()}</div>
                     </div>
-                    <div className="p-10 space-y-4 text-center">
-                        <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/40">Studio Earnings</div>
-                        <div className="text-4xl font-serif font-light">£{totalEarned.toLocaleString()}</div>
+                    <div className="p-12 space-y-4">
+                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none text-center">Studio Revenue</div>
+                        <div className="text-5xl font-serif font-light tracking-tighter text-center">£{totalEarned.toLocaleString()}</div>
                     </div>
-                    <div className="p-10 space-y-4 text-center">
-                        <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/40">Active Listings</div>
-                        <div className="text-4xl font-serif font-light">{userArtworks.filter(a => a.status === 'available').length}</div>
+                    <div className="p-12 space-y-4">
+                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none text-center">Masterpieces</div>
+                        <div className="text-5xl font-serif font-light tracking-tighter text-center">{userArtworks.filter(a => a.status === 'available').length}</div>
                     </div>
-                    <div className="p-10 space-y-4 text-right">
-                        <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/40">Since</div>
-                        <div className="text-4xl font-serif font-light">MMXXIV</div>
+                    <div className="p-12 space-y-4">
+                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none text-right">Open Calls</div>
+                        <div className="text-5xl font-serif font-light tracking-tighter text-right">{userCollaborations.length}</div>
                     </div>
                 </div>
             )}
 
             {/* Content Tabs */}
-            <div className="space-y-6">
-                <div className="flex gap-8 border-b border-border pb-4 justify-between items-center">
-                    <div className="flex gap-8">
-                        <button
-                            className={`flex items-center gap-2 font-medium pb-4 -mb-5 transition-colors ${activeTab === 'collection' ? 'border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                            onClick={() => setActiveTab('collection')}
-                        >
-                            <Grid className="h-4 w-4" /> {t('collection')}
-                        </button>
-                        <button
-                            className={`flex items-center gap-2 font-medium pb-4 -mb-5 transition-colors ${activeTab === 'journal' ? 'border-b-2 border-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                            onClick={() => setActiveTab('journal')}
-                        >
-                            <BookOpen className="h-4 w-4" /> Studio Journal
-                        </button>
-                        {isOwnProfile && (
-                            <>
-                                <button
-                                    className={`flex items-center gap-2 pb-4 -mb-5 transition-colors ${activeTab === 'events' ? 'border-b-2 border-foreground font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-                                    onClick={() => setActiveTab('events')}
-                                >
-                                    <Calendar className="h-4 w-4" /> Schedule
-                                </button>
-                                <button
-                                    className={`flex items-center gap-2 pb-4 -mb-5 transition-colors ${activeTab === 'history' ? 'border-b-2 border-foreground font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-                                    onClick={() => setActiveTab('history')}
-                                >
-                                    <History className="h-4 w-4" /> Transactions
-                                </button>
-                            </>
-                        )}
-                    </div>
-                    {isOwnProfile && activeTab === 'collection' && (
-                        <Button size="sm" onClick={() => setIsAddingArtwork(true)} variant="outline">
-                            + {t('add_piece')}
-                        </Button>
-                    )}
-                    {isOwnProfile && activeTab === 'journal' && (
-                        <Button size="sm" onClick={() => setIsAddingJournal(true)} variant="outline">
-                            + New Entry
-                        </Button>
-                    )}
-                    {isOwnProfile && activeTab === 'events' && (
-                        <Button size="sm" asChild variant="outline">
-                            <a href="/events/create">+ Host Event</a>
-                        </Button>
+            <div className="space-y-12">
+                <div className="flex gap-12 border-b border-border/10 overflow-x-auto no-scrollbar">
+                    <button
+                        className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'collection' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                        onClick={() => setActiveTab('collection')}
+                    >
+                        {activeTab === 'collection' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
+                        <Grid className="h-3 w-3" /> {t('collection')}
+                    </button>
+                    <button
+                        className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'journal' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                        onClick={() => setActiveTab('journal')}
+                    >
+                        {activeTab === 'journal' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
+                        <BookOpen className="h-3 w-3" /> Studio Journal
+                    </button>
+                    <button
+                        className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'collaborations' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                        onClick={() => setActiveTab('collaborations')}
+                    >
+                        {activeTab === 'collaborations' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
+                        <Users className="h-3 w-3" /> Open Calls
+                    </button>
+                    {isOwnProfile && (
+                        <>
+                            <button
+                                className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'events' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                                onClick={() => setActiveTab('events')}
+                            >
+                                {activeTab === 'events' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
+                                <Calendar className="h-3 w-3" /> Schedule
+                            </button>
+                            <button
+                                className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'history' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                                onClick={() => setActiveTab('history')}
+                            >
+                                {activeTab === 'history' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
+                                <History className="h-3 w-3" /> History
+                            </button>
+                        </>
                     )}
                 </div>
 
                 {/* Collection Tab */}
                 {activeTab === 'collection' && (
-                    <>
-                        {isAddingArtwork && (
-                            <div className="p-6 border border-border rounded-lg bg-secondary/10 mb-8 animate-in fade-in slide-in-from-top-4">
-                                <h3 className="text-lg font-serif font-medium mb-4">List New Artwork</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <ArtworkImageUpload
-                                            imageUrls={newArtwork.imageUrls}
-                                            onImagesChange={(urls) => setNewArtwork({ ...newArtwork, imageUrls: urls })}
-                                            maxImages={5}
-                                        />
-                                    </div>
-                                    <div className="space-y-4">
-                                        <Input
-                                            placeholder="Title"
-                                            value={newArtwork.title}
-                                            onChange={(e) => setNewArtwork({ ...newArtwork, title: e.target.value })}
-                                        />
-                                        <Input
-                                            placeholder="Price"
-                                            type="number"
-                                            value={newArtwork.price}
-                                            onChange={(e) => setNewArtwork({ ...newArtwork, price: e.target.value })}
-                                        />
-                                        <Textarea
-                                            placeholder="Description"
-                                            value={newArtwork.description}
-                                            onChange={(e) => setNewArtwork({ ...newArtwork, description: e.target.value })}
-                                        />
-                                        <div className="flex items-center gap-2 py-2">
-                                            <input
-                                                type="checkbox"
-                                                id="forSale"
-                                                checked={newArtwork.isForSale}
-                                                onChange={(e) => setNewArtwork({ ...newArtwork, isForSale: e.target.checked })}
-                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                            />
-                                            <label htmlFor="forSale" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                                Available for Sale
-                                            </label>
-                                        </div>
-                                        <div className="flex gap-2 justify-end">
-                                            <Button variant="ghost" onClick={() => setIsAddingArtwork(false)}>Cancel</Button>
-                                            <Button onClick={handleAddArtwork} disabled={artworkStatus === 'saving' || newArtwork.imageUrls.length === 0}>
-                                                {artworkStatus === 'saving' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                {artworkStatus === 'success' && "Listed!"}
-                                                {artworkStatus === 'idle' && "List Item"}
-                                            </Button>
-                                        </div>
-                                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {userArtworks.map((artwork: any) => (
+                            <ArtworkCard key={artwork.id} artwork={artwork} />
+                        ))}
+                        {isOwnProfile && (
+                            <button 
+                                onClick={() => setIsAddingArtwork(true)}
+                                className="aspect-[3/4] border-2 border-dashed border-border/20 flex flex-col items-center justify-center gap-4 hover:border-primary/40 hover:bg-secondary/5 transition-all group"
+                            >
+                                <div className="h-12 w-12 rounded-full bg-secondary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <Grid className="h-6 w-6 text-muted-foreground" />
                                 </div>
-                            </div>
+                                <span className="text-[10px] font-bold tracking-widest uppercase opacity-40 group-hover:opacity-100">Add New Masterpiece</span>
+                            </button>
                         )}
-
-                        <div className="space-y-12">
-                            {/* For Sale Section */}
-                            {userArtworks.filter(a => a.status === 'available').length > 0 && (
-                                <div className="space-y-6">
-                                    <h3 className="font-serif text-2xl">{t('available_for_sale')}</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                        {userArtworks.filter(a => a.status === 'available').map((artwork: any, index) => (
-                                            <ArtworkCard key={artwork.id} artwork={artwork} priority={index < 4} />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Private Collection Section */}
-                            {userArtworks.filter(a => a.status === 'collection').length > 0 && (
-                                <div className="space-y-6">
-                                    <h3 className="font-serif text-2xl">{t('private_collection')}</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                        {userArtworks.filter(a => a.status === 'collection').map((artwork: any) => (
-                                            <ArtworkCard key={artwork.id} artwork={artwork} />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {userArtworks.length === 0 && !isAddingArtwork && (
-                                <div className="py-20 text-center bg-secondary/10 rounded-lg">
-                                    <p className="text-muted-foreground">{t('no_artworks')}</p>
-                                    {isOwnProfile && <Button variant="link" asChild><a href="/explore">{t('start_collecting')}</a></Button>}
-                                </div>
-                            )}
-                        </div>
-                    </>
+                    </div>
                 )}
 
                 {/* Studio Journal Tab */}
                 {activeTab === 'journal' && (
-                    <div className="space-y-12 max-w-4xl">
-                        {isAddingJournal && (
-                            <div className="p-10 border border-border rounded-none bg-secondary/5 space-y-8 animate-in fade-in slide-in-from-top-4">
-                                <h3 className="font-serif text-3xl">Log Artwork Evolution</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                    <div className="space-y-4">
-                                        <ImageUpload onImageUploaded={(url: string) => setNewJournal({ ...newJournal, imageUrl: url })} currentImageUrl={newJournal.imageUrl} />
-                                        {!newJournal.imageUrl && (
-                                            <div className="aspect-[4/5] border-2 border-dashed border-border/20 flex flex-col items-center justify-center bg-secondary/10">
-                                                <Loader2 className="h-8 w-8 mx-auto opacity-20" />
-                                                <span className="text-[10px] font-bold tracking-widest uppercase opacity-40">Add Visual Proof</span>
-                                            </div>
-                                        )}
+                    <div className="space-y-24 max-w-4xl">
+                        {journalEntries.map((entry) => (
+                            <div key={entry.id} className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start group">
+                                <div className="md:col-span-5 aspect-[4/5] relative overflow-hidden bg-secondary/10 border border-border/5">
+                                    {entry.imageUrl && (
+                                        <Image 
+                                            src={entry.imageUrl} 
+                                            alt={entry.title} 
+                                            fill 
+                                            className="object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-100 group-hover:scale-105" 
+                                        />
+                                    )}
+                                </div>
+                                <div className="md:col-span-7 space-y-6 pt-4">
+                                    <div className="text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">
+                                        {new Date(entry.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
                                     </div>
-                                    <div className="space-y-6">
-                                        <Input placeholder="Entry Title" value={newJournal.title} onChange={(e) => setNewJournal({ ...newJournal, title: e.target.value })} className="h-14 font-serif text-xl" />
-                                        <Textarea placeholder="Behind the scenes..." value={newJournal.content} onChange={(e) => setNewJournal({ ...newJournal, content: e.target.value })} className="min-h-[200px] leading-relaxed italic" />
-                                        <div className="flex gap-2">
-                                            <Button variant="ghost" onClick={() => setIsAddingJournal(false)}>Discard Entry</Button>
-                                            <Button onClick={handleAddJournalEntry} disabled={journalStatus === 'saving'}>Publish Story</Button>
-                                        </div>
+                                    <h4 className="text-4xl font-serif font-medium leading-[1.1]">{entry.title}</h4>
+                                    <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
+                                        {entry.content}
+                                    </p>
+                                    <div className="pt-6">
+                                        <div className="h-px w-20 bg-primary/20" />
                                     </div>
                                 </div>
                             </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Collaborations Tab */}
+                {activeTab === 'collaborations' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {userCollaborations.map((collab) => (
+                            <div key={collab.id} className="p-10 border border-border/10 bg-secondary/5 space-y-6 group">
+                                <div className="flex justify-between items-start">
+                                    <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/60">{collab.type} CALL</div>
+                                    <div className={`px-3 py-1 text-[9px] font-bold tracking-widest uppercase border ${collab.status === 'Open' ? 'border-primary/20 text-primary' : 'border-border text-muted-foreground'}`}>
+                                        {collab.status}
+                                    </div>
+                                </div>
+                                <h4 className="text-2xl font-serif">{collab.title}</h4>
+                                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 italic">
+                                    {collab.description}
+                                </p>
+                                <div className="flex items-center justify-between pt-6 border-t border-border/10">
+                                    <div className="text-[10px] font-bold tracking-widest uppercase opacity-40">{collab.location}</div>
+                                    <Button variant="ghost" size="sm" asChild className="gap-2 group/btn">
+                                        <Link href={`/collaborate/${collab.id}`}>
+                                            Manage Call <ArrowRight className="h-3 w-3 group-hover/btn:translate-x-1 transition-transform" />
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                        {userCollaborations.length === 0 && (
+                            <div className="col-span-full py-24 text-center border border-dashed border-border/20">
+                                <p className="font-serif italic text-xl text-muted-foreground">Seeking new creative horizons?</p>
+                                <Button variant="link" asChild className="mt-4 uppercase tracking-widest text-[10px] font-bold">
+                                    <Link href="/collaborate/create">Initialise Collaboration Call</Link>
+                                </Button>
+                            </div>
                         )}
+                    </div>
+                )}
 
-                        <div className="space-y-24">
-                            {journalEntries.map((entry) => (
-                                <div key={entry.id} className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start group">
-                                    <div className="md:col-span-5 aspect-[4/5] relative overflow-hidden bg-secondary/10 border border-border/5">
-                                        {entry.imageUrl && (
-                                            <Image 
-                                                src={entry.imageUrl} 
-                                                alt={entry.title} 
-                                                fill 
-                                                className="object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-100 group-hover:scale-105" 
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="md:col-span-7 space-y-6 pt-4">
-                                        <div className="text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">
-                                            {new Date(entry.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
-                                        </div>
-                                        <h4 className="text-4xl font-serif font-medium leading-[1.1]">{entry.title}</h4>
-                                        <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
-                                            {entry.content}
-                                        </p>
-                                        <div className="pt-6">
-                                            <div className="h-px w-20 bg-primary/20" />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {journalEntries.length === 0 && !isAddingJournal && (
-                                <div className="py-32 text-center border-y border-border/10">
-                                    <p className="font-serif italic text-2xl text-muted-foreground mb-4">Sharing the studio secrets soon.</p>
-                                    <div className="text-[10px] font-bold tracking-[0.3em] uppercase opacity-30">No Journal Entries Found</div>
-                                </div>
-                            )}
+                {/* History Tab */}
+                {activeTab === 'history' && (
+                    <div className="space-y-12">
+                        <div className="space-y-6">
+                            <h3 className="font-serif text-2xl">Studio Lifecycle</h3>
+                            <div className="border border-border/10 divide-y divide-border/10">
+                                {transactions.map((tx) => (
+                                    <TransactionRow key={tx.id} tx={tx} />
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {/* My Schedule Tab */}
                 {activeTab === 'events' && (
-                    <div className="space-y-16">
-                        {/* Hosting Section */}
-                        <div className="space-y-6">
-                            <h3 className="font-serif text-2xl flex items-center gap-3">
-                                <div className="h-2 w-2 rounded-full bg-primary" />
-                                Hosted Events
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {userEvents.map((event: any) => (
-                                    <EventMiniCard key={event.id} event={event} isOwner={true} />
-                                ))}
-                                {userEvents.length === 0 && (
-                                    <div className="col-span-full py-12 text-center border-2 border-dashed border-border/20 rounded-lg">
-                                        <p className="text-muted-foreground text-sm italic">You haven't hosted any events yet.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Attending Section */}
-                        <div className="space-y-6">
-                            <h3 className="font-serif text-2xl flex items-center gap-3">
-                                <div className="h-2 w-2 rounded-full bg-muted-foreground/40" />
-                                Registered Sessions
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {attendingEvents.map((event: any) => (
-                                    <EventMiniCard key={event.id} event={event} isOwner={false} />
-                                ))}
-                                {attendingEvents.length === 0 && (
-                                    <div className="col-span-full py-12 text-center border-2 border-dashed border-border/20 rounded-lg">
-                                        <p className="text-muted-foreground text-sm italic">You haven't registered for any events yet.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* History Tab */}
-                {activeTab === 'history' && isOwnProfile && (
-                    <div className="pt-6 space-y-12">
-                        <div>
-                            <h3 className="font-serif text-2xl mb-6">Bought Artworks</h3>
-                            <div className="border rounded-md divide-y overflow-hidden">
-                                {transactions.filter(t => t.type === 'buy').length > 0 ? (
-                                    transactions.filter(t => t.type === 'buy').map((tx) => (
-                                        <TransactionRow key={tx.id} tx={tx} />
-                                    ))
-                                ) : (
-                                    <div className="p-8 text-center text-muted-foreground">No purchases yet.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 className="font-serif text-2xl mb-6">Sold Artworks</h3>
-                            <div className="border rounded-md divide-y overflow-hidden">
-                                {transactions.filter(t => t.type === 'sell').length > 0 ? (
-                                    transactions.filter(t => t.type === 'sell').map((tx) => (
-                                        <TransactionRow key={tx.id} tx={tx} />
-                                    ))
-                                ) : (
-                                    <div className="p-8 text-center text-muted-foreground">No sales yet.</div>
-                                )}
-                            </div>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {userEvents.map((event: any) => (
+                            <EventMiniCard key={event.id} event={event} isOwner={true} />
+                        ))}
+                        {attendingEvents.map((event: any) => (
+                            <EventMiniCard key={event.id} event={event} isOwner={false} />
+                        ))}
                     </div>
                 )}
             </div>
@@ -627,13 +535,6 @@ function EventMiniCard({ event, isOwner }: { event: any, isOwner: boolean }) {
                         <Calendar className="h-8 w-8 opacity-10" />
                     </div>
                 )}
-                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="icon" variant="secondary" asChild className="h-8 w-8 rounded-none">
-                        <a href={isOwner ? `/events/${event.id}/edit` : `/events/${event.id}`}>
-                            {isOwner ? <Edit2 className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-                        </a>
-                    </Button>
-                </div>
             </div>
             <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between">
@@ -654,23 +555,42 @@ function EventMiniCard({ event, isOwner }: { event: any, isOwner: boolean }) {
 
 function TransactionRow({ tx }: { tx: any }) {
     return (
-        <div className="p-6 flex justify-between items-center hover:bg-secondary/5 transition-colors border-b border-border/5 last:border-0">
-            <div className="flex items-center gap-4">
-                <div className={cn(
-                    "h-10 w-10 flex items-center justify-center rounded-none border text-xs font-bold",
-                    tx.type === 'sell' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
-                )}>
-                    {tx.type === 'sell' ? 'Σ' : 'Ω'}
+        <div className="p-6 flex justify-between items-center hover:bg-secondary/5 transition-colors group">
+            <div className="flex items-center gap-6">
+                <div className="relative h-16 w-16 bg-muted overflow-hidden border border-border/10 shrink-0">
+                    {tx.imageUrl ? (
+                        <Image 
+                            src={tx.imageUrl} 
+                            alt={tx.itemTitle || tx.title} 
+                            fill 
+                            className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
+                        />
+                    ) : (
+                        <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase opacity-20">Art</div>
+                    )}
                 </div>
                 <div>
-                    <div className="font-serif text-base">{tx.itemTitle || tx.title}</div>
-                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                        {tx.type === 'sell' ? 'Sold to Collector' : 'Acquired from Artisan'} • {new Date(tx.date).toLocaleDateString()}
+                    <Link 
+                        href={`/artwork/${tx.itemId || tx.id}`} 
+                        className="font-serif text-lg hover:text-primary transition-colors block"
+                    >
+                        {tx.itemTitle || tx.title || "Untitled Masterpiece"}
+                    </Link>
+                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">
+                        {tx.type === 'sell' ? 'Sold to Collector' : 'Acquired from Artisan'} • {new Date(tx.date || tx.createdAt).toLocaleDateString()}
                     </div>
                 </div>
             </div>
-            <div className={`font-serif text-lg ${tx.type === 'sell' ? 'text-emerald-600' : 'text-foreground'}`}>
-                {tx.type === 'sell' ? '+' : '-'}£{tx.amount.toLocaleString()}
+            <div className="text-right">
+                <div className={cn(
+                    "font-serif text-xl",
+                    tx.type === 'sell' ? "text-emerald-600" : "text-foreground"
+                )}>
+                    {tx.type === 'sell' ? '+' : '-'}£{tx.amount.toLocaleString()}
+                </div>
+                <div className="text-[9px] font-bold tracking-widest text-muted-foreground uppercase opacity-40 mt-1">
+                    {tx.currency || 'GBP'}
+                </div>
             </div>
         </div>
     );

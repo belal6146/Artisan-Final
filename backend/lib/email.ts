@@ -14,27 +14,8 @@ export interface EmailOptions {
  * Currently configured to simulate delivery for verification.
  */
 export async function sendEmail({ to, subject, body }: EmailOptions) {
-    logger.info("📧 [EMAIL SIMULATOR] Attempting to send email...", { to, subject });
-
-    // In a real production environment, we'd call the mail provider API here:
-    // const response = await mailProvider.send({ to, from: 'no-reply@artisan.com', subject, text: body });
-
-    // MOCK DELAY (to simulate network)
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // LOG TO CONSOLE (For User Verification)
-    console.log(`
-      ╔════════════════════════════════════════════════════════════════════════════════
-      ║ 📧 EMAIL SENT (SIMULATED)
-      ╠════════════════════════════════════════════════════════════════════════════════
-      ║ To:      ${to}
-      ║ Subject: ${subject}
-      ║
-      ║ ${body}
-      ╚════════════════════════════════════════════════════════════════════════════════
-    `);
-
-    logger.info("📧 [EMAIL SIMULATOR] Email successfully 'delivered'.", { to });
+    // SIMULATE SUCCESS
+    logger.info('SYSTEM_EMAIL_SENT', { to, subject, source: 'backend' });
     return { success: true, messageId: `SIM-${Math.random().toString(36).substring(7)}` };
 }
 

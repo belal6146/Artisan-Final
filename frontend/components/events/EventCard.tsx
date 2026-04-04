@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Event } from "@/types/schema";
 import { cn } from "@/frontend/lib/utils";
+import { useLocale } from "@/frontend/contexts/LocaleContext";
 import { Calendar, MapPin, Users } from "lucide-react";
 
 interface EventCardProps {
@@ -10,6 +11,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, className }: EventCardProps) {
+    const { convertPrice } = useLocale();
     const startDate = new Date(event.startTime);
     const isSoldOut = event.currentAttendees >= event.capacity;
 
@@ -28,7 +30,7 @@ export function EventCard({ event, className }: EventCardProps) {
                         alt={event.title}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                        className="object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000 ease-out"
                     />
                 ) : (
                     <div className="flex items-center justify-center h-full bg-secondary/30">
@@ -70,7 +72,7 @@ export function EventCard({ event, className }: EventCardProps) {
                 <div className="pt-2 flex items-center justify-between mt-2 opacity-60 group-hover:opacity-100 transition-opacity">
                     <span className="text-xs text-muted-foreground">Hosted by <span className="text-foreground font-medium">{event.organizerName}</span></span>
                     <span className="font-medium text-sm">
-                        {event.price === 0 ? 'Free' : `${event.currency} ${event.price}`}
+                        {event.price === 0 ? 'Free' : convertPrice(event.price, event.currency).formatted}
                     </span>
                 </div>
             </div>
