@@ -13,7 +13,7 @@ export async function GET(request: Request) {
             const docRef = doc(db, 'artworks', id);
             const docSnap = await getDoc(docRef);
             if (!docSnap.exists()) return NextResponse.json(null, { status: 404 });
-            return NextResponse.json(docSnap.data());
+            return NextResponse.json({ id: docSnap.id, ...docSnap.data() });
         }
 
         // 2. Get All Artworks

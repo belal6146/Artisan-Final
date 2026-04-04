@@ -6,11 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { User } from "@/types";
 import { ArtworkCard } from "@/components/art/ArtworkCard";
+import { Select } from "@/components/ui/select-minimal";
+import type { ArtworkMedium } from "@/types/schema";
+import { NOT_PROVIDED, textOrMissing } from "@/frontend/lib/artwork-display";
 import { cn } from "@/frontend/lib/utils";
-import { Settings, Edit2, History, Grid, Loader2, Calendar, Heart, BookOpen, Check, ArrowRight, Users } from "lucide-react";
-import { getEventsByOrganizer } from "@/backend/actions/event";
+import { Edit2, History, Grid, Loader2, Calendar, Heart, Check, ArrowRight } from "lucide-react";
 import { collection, query, getDocs } from "firebase/firestore"; // Still needed for reading subcollection (Client Fetch)
 import { db } from "@/backend/config/firebase";
 import { ImageUpload } from "@/components/ui/image-upload";
@@ -21,6 +22,16 @@ import { useLocale } from "@/frontend/contexts/LocaleContext";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+const ARTWORK_MEDIA: ArtworkMedium[] = [
+    "Painting",
+    "Sculpture",
+    "Photography",
+    "Digital",
+    "Textile",
+    "Mixed Media",
+    "Other",
+];
 
 interface ProfileProps {
     profile: any; // Using any for flexibility in this hybrid mock/real setup
@@ -34,9 +45,13 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
     const isOwnProfile = user?.uid === profile.uid || profile.uid === 'me'; // 'me' handling for dev
 
     const [isEditing, setIsEditing] = useState(false);
-    const [bio, setBio] = useState(profile.bio || "Art enthusiast and collector.");
-    const [location, setLocation] = useState(profile.location || "Global Citizen");
-    const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || profile.photoURL || ""); // New state
+    const [bio, setBio] = useState(profile.bio ?? "");
+    const [location, setLocation] = useState(profile.location ?? "");
+    const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || profile.photoURL || "");
+    const [yearsOfPracticeStr, setYearsOfPracticeStr] = useState(
+        profile.yearsOfPractice != null ? String(profile.yearsOfPractice) : ""
+    );
+    const [craftStatement, setCraftStatement] = useState(profile.craftStatement ?? "");
     const [userArtworks, setUserArtworks] = useState<any[]>(artworks);
     const [attendingEvents, setAttendingEvents] = useState<any[]>([]);
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -113,12 +128,23 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
 
     const [newArtwork, setNewArtwork] = useState({
-        title: '',
-        price: '',
-        description: '',
+        title: "",
+        price: "",
+        description: "",
+        medium: "Other" as ArtworkMedium,
+        origin: "",
+        process: "",
+        materialsText: "",
+        timeSpent: "",
+        peopleInvolved: "",
+        artisanStory: "",
+        pieceMeaning: "",
+        workValues: "",
+        impactMetrics: "",
+        aspirations: "",
         imageUrls: [] as string[],
         primaryImageIndex: 0,
-        isForSale: true
+        isForSale: true,
     });
     const [newJournal, setNewJournal] = useState({ title: '', content: '', imageUrl: '' }); // NEW
     const [artworkStatus, setArtworkStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -178,7 +204,20 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         if (!user) return;
         setStatus('saving');
 
-        const result = await updateUserProfile(user.uid, { bio, location, avatarUrl });
+        const yp =
+            yearsOfPracticeStr.trim() === ""
+                ? undefined
+                : parseInt(yearsOfPracticeStr.trim(), 10);
+        const yearsPayload =
+            yp !== undefined && !Number.isNaN(yp) ? yp : undefined;
+
+        const result = await updateUserProfile(user.uid, {
+            bio,
+            location,
+            avatarUrl,
+            ...(yearsPayload !== undefined ? { yearsOfPractice: yearsPayload } : {}),
+            craftStatement: craftStatement.trim() || undefined,
+        });
 
         if (result.success) {
             logger.info('USER_UPDATE_SUCCESS', { userId: user.uid, source: 'frontend' });
@@ -201,18 +240,34 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         try {
             const { createArtwork } = await import("@/backend/actions/artwork");
 
+            const materials = newArtwork.materialsText
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+
             const result = await createArtwork({
                 title: newArtwork.title,
-                description: newArtwork.description || "",
+                description: newArtwork.description.trim() || undefined,
                 price: parseFloat(newArtwork.price) || 0,
-                imageUrl: newArtwork.imageUrls[0] || "", 
+                imageUrl: newArtwork.imageUrls[0] || "",
                 imageUrls: newArtwork.imageUrls,
-                primaryImageIndex: 0,
+                primaryImageIndex: newArtwork.primaryImageIndex,
+                medium: newArtwork.medium,
                 artistId: user.uid,
                 artistName: profile.displayName || "Anonymous",
-                location: location,
-                currency: "GBP", 
-                isForSale: newArtwork.isForSale
+                location: location.trim() || undefined,
+                currency: "GBP",
+                isForSale: newArtwork.isForSale,
+                origin: newArtwork.origin.trim() || undefined,
+                process: newArtwork.process.trim() || undefined,
+                materials: materials.length ? materials : undefined,
+                timeSpent: newArtwork.timeSpent.trim() || undefined,
+                peopleInvolved: newArtwork.peopleInvolved.trim() || undefined,
+                artisanStory: newArtwork.artisanStory.trim() || undefined,
+                pieceMeaning: newArtwork.pieceMeaning.trim() || undefined,
+                workValues: newArtwork.workValues.trim() || undefined,
+                impactMetrics: newArtwork.impactMetrics.trim() || undefined,
+                aspirations: newArtwork.aspirations.trim() || undefined,
             });
 
             if (result.success) {
@@ -222,7 +277,25 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                 setTimeout(() => {
                     setIsAddingArtwork(false);
                     setArtworkStatus('idle');
-                    setNewArtwork({ title: '', price: '', description: '', imageUrls: [], primaryImageIndex: 0, isForSale: true });
+                    setNewArtwork({
+                        title: "",
+                        price: "",
+                        description: "",
+                        medium: "Other",
+                        origin: "",
+                        process: "",
+                        materialsText: "",
+                        timeSpent: "",
+                        peopleInvolved: "",
+                        artisanStory: "",
+                        pieceMeaning: "",
+                        workValues: "",
+                        impactMetrics: "",
+                        aspirations: "",
+                        imageUrls: [],
+                        primaryImageIndex: 0,
+                        isForSale: true,
+                    });
                 }, 1000);
             } else {
                 setArtworkStatus('error');
@@ -236,18 +309,21 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         }
     };
 
+    const roleLabel = profile.role?.trim()
+        ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1).toLowerCase()
+        : NOT_PROVIDED;
+
     return (
-        <div className="space-y-24 animate-in fade-in duration-200">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row gap-12 items-start md:items-center border-l-2 border-primary/20 pl-12 w-full group/header">
+        <div className="space-y-16">
+            <div className="flex flex-col md:flex-row gap-8 items-start w-full">
                 <div className="shrink-0">
-                    <div className="relative w-48 h-48 overflow-hidden bg-secondary/10 border border-border/10">
+                    <div className="relative w-40 h-40 overflow-hidden bg-muted/30 border border-border/10">
                         <Image
                             src={avatarUrl || profile.avatarUrl || profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.displayName}`}
                             alt={profile.displayName || "User"}
                             fill
                             sizes="(max-width: 768px) 100vw, 200px"
-                            className="object-cover grayscale transition-all duration-1000 group-hover/header:grayscale-0 group-hover/header:scale-105"
+                            className="object-cover grayscale md:grayscale-0"
                         />
                         {isOwnProfile && isEditing && (
                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm animate-in fade-in zoom-in-95">
@@ -260,140 +336,168 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                     </div>
                 </div>
 
-                <div className="space-y-6 flex-1 w-full">
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                <div className="space-y-5 flex-1 w-full">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div className="space-y-2">
-                            <h1 className="text-5xl md:text-8xl font-serif font-medium tracking-tighter leading-none">
-                                {profile.displayName || "Anonymous User"}
+                            <h1 className="text-4xl md:text-5xl font-serif font-medium tracking-tight">
+                                {profile.displayName || "Anonymous"}
                             </h1>
-                            <div className="text-muted-foreground flex items-center gap-4 text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">
+                            <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
                                 {isEditing ? (
                                     <Input
                                         value={location}
                                         onChange={(e) => setLocation(e.target.value)}
-                                        className="h-10 w-48"
+                                        className="h-9 max-w-xs"
                                     />
                                 ) : (
-                                    <span>{location}</span>
+                                    <span>{textOrMissing(location)}</span>
                                 )}
-                                <span className="w-1 h-1 bg-primary/20 rounded-full" />
-                                <span>{profile.role || "Ardent Member"}</span>
+                                <span>·</span>
+                                <span>{roleLabel}</span>
                             </div>
                         </div>
-                        <div className="flex gap-4 shrink-0">
+                        <div className="flex gap-2 shrink-0">
                             {isOwnProfile ? (
-                                <Button variant="outline" className="h-14 px-8" onClick={() => setIsEditing(!isEditing)}>
+                                <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
                                     {isEditing ? <Check className="h-4 w-4 mr-2" /> : <Edit2 className="h-4 w-4 mr-2" />}
-                                    {isEditing ? "FINALIZE" : "EDIT PROFILE"}
+                                    {isEditing ? "Done" : "Edit"}
                                 </Button>
                             ) : (
-                                <div className="flex gap-4">
-                                    <Button 
-                                        className="shadow-2xl"
-                                        onClick={handleSupport}
-                                        disabled={supporting}
-                                    >
+                                <div className="flex gap-2">
+                                    <Button variant="secondary" size="sm" onClick={handleSupport} disabled={supporting}>
                                         {supporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4 mr-2" />}
-                                        {supporting ? "RELAYING..." : "SUPPORT ARTISAN"}
+                                        {supporting ? "…" : "Support"}
                                     </Button>
-                                    <Button variant="outline" className="h-16 px-10" asChild>
-                                        <Link href="/collaborate">CONNECT</Link>
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link href="/collaborate">Collaborate</Link>
                                     </Button>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="max-w-2xl bg-secondary/5 p-8 border-l border-border/10">
+                    <div className="max-w-2xl space-y-5">
                         {isEditing ? (
-                            <Textarea
-                                value={bio}
-                                onChange={(e) => setBio(e.target.value)}
-                                className="bg-background"
-                                placeholder="Share your creative mission..."
-                            />
+                            <>
+                                <div className="space-y-1">
+                                    <label className="text-sm text-muted-foreground">Bio</label>
+                                    <Textarea
+                                        value={bio}
+                                        onChange={(e) => setBio(e.target.value)}
+                                        className="min-h-[88px]"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm text-muted-foreground">Years in practice</label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={80}
+                                        value={yearsOfPracticeStr}
+                                        onChange={(e) => setYearsOfPracticeStr(e.target.value)}
+                                        className="max-w-[100px]"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm text-muted-foreground">Practice</label>
+                                    <Textarea
+                                        value={craftStatement}
+                                        onChange={(e) => setCraftStatement(e.target.value)}
+                                        className="min-h-[100px]"
+                                    />
+                                </div>
+                            </>
                         ) : (
-                            <p className="text-xl font-light leading-relaxed italic text-muted-foreground">
-                                “{bio}”
-                            </p>
+                            <div className="space-y-4 text-muted-foreground leading-relaxed">
+                                <p>{bio.trim() ? bio : NOT_PROVIDED}</p>
+                                <p className="text-sm">
+                                    {(() => {
+                                        const y = parseInt(yearsOfPracticeStr, 10);
+                                        return yearsOfPracticeStr.trim() && !Number.isNaN(y) && y > 0
+                                            ? `${y} years`
+                                            : NOT_PROVIDED;
+                                    })()}
+                                </p>
+                                <p>{craftStatement.trim() ? craftStatement : NOT_PROVIDED}</p>
+                            </div>
                         )}
                     </div>
 
                     {isEditing && (
-                        <div className="flex gap-4 animate-in slide-in-from-left-4">
-                            <Button onClick={handleSave} className="h-12 text-[10px]" disabled={status === 'saving'}>
-                                {status === 'saving' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {status === 'success' && "RELAY SUCCESSFUL"}
-                                {status === 'error' && "RELAY FAILED"}
-                                {status === 'idle' && "SAVE CHANGES"}
+                        <div className="flex gap-2">
+                            <Button size="sm" onClick={handleSave} disabled={status === "saving"}>
+                                {status === "saving" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {status === "success" && "Saved"}
+                                {status === "error" && "Error"}
+                                {status === "idle" && "Save"}
                             </Button>
-                            <Button variant="ghost" onClick={() => setIsEditing(false)} className="h-12 text-[10px]" disabled={status === 'saving'}>CANCEL</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)} disabled={status === "saving"}>
+                                Cancel
+                            </Button>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Dashboard Tabs (Only if Own Profile) */}
             {isOwnProfile && (
-                <div className="grid grid-cols-2 md:grid-cols-4 border border-border/10 divide-x divide-border/10 bg-secondary/5">
-                    <div className="p-12 space-y-4">
-                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none">Aquisitions</div>
-                        <div className="text-5xl font-serif font-light tracking-tighter">£{totalSpent.toLocaleString()}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/20 rounded-sm overflow-hidden text-sm">
+                    <div className="bg-background p-5 space-y-1">
+                        <div className="text-muted-foreground">Purchases</div>
+                        <div className="font-serif text-2xl">£{totalSpent.toLocaleString()}</div>
                     </div>
-                    <div className="p-12 space-y-4">
-                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none text-center">Studio Revenue</div>
-                        <div className="text-5xl font-serif font-light tracking-tighter text-center">£{totalEarned.toLocaleString()}</div>
+                    <div className="bg-background p-5 space-y-1 text-center md:text-left">
+                        <div className="text-muted-foreground">Sales</div>
+                        <div className="font-serif text-2xl">£{totalEarned.toLocaleString()}</div>
                     </div>
-                    <div className="p-12 space-y-4">
-                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none text-center">Masterpieces</div>
-                        <div className="text-5xl font-serif font-light tracking-tighter text-center">{userArtworks.filter(a => a.status === 'available').length}</div>
+                    <div className="bg-background p-5 space-y-1 text-center md:text-left">
+                        <div className="text-muted-foreground">Listed</div>
+                        <div className="font-serif text-2xl">{userArtworks.filter((a) => a.status === "available").length}</div>
                     </div>
-                    <div className="p-12 space-y-4">
-                        <div className="text-[10px] font-bold tracking-[0.5em] uppercase text-primary/40 leading-none text-right">Open Calls</div>
-                        <div className="text-5xl font-serif font-light tracking-tighter text-right">{userCollaborations.length}</div>
+                    <div className="bg-background p-5 space-y-1 text-right md:text-left">
+                        <div className="text-muted-foreground">Calls</div>
+                        <div className="font-serif text-2xl">{userCollaborations.length}</div>
                     </div>
                 </div>
             )}
 
-            {/* Content Tabs */}
-            <div className="space-y-12">
-                <div className="flex gap-12 border-b border-border/10 overflow-x-auto no-scrollbar">
+            <div className="space-y-8">
+                <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border/15 pb-3 text-sm">
                     <button
-                        className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'collection' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
-                        onClick={() => setActiveTab('collection')}
+                        type="button"
+                        className={activeTab === "collection" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
+                        onClick={() => setActiveTab("collection")}
                     >
-                        {activeTab === 'collection' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
-                        <Grid className="h-3 w-3" /> {t('collection')}
+                        {t("collection")}
                     </button>
                     <button
-                        className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'journal' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
-                        onClick={() => setActiveTab('journal')}
+                        type="button"
+                        className={activeTab === "journal" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
+                        onClick={() => setActiveTab("journal")}
                     >
-                        {activeTab === 'journal' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
-                        <BookOpen className="h-3 w-3" /> Studio Journal
+                        Journal
                     </button>
                     <button
-                        className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'collaborations' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
-                        onClick={() => setActiveTab('collaborations')}
+                        type="button"
+                        className={activeTab === "collaborations" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
+                        onClick={() => setActiveTab("collaborations")}
                     >
-                        {activeTab === 'collaborations' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
-                        <Users className="h-3 w-3" /> Open Calls
+                        Calls
                     </button>
                     {isOwnProfile && (
                         <>
                             <button
-                                className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'events' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
-                                onClick={() => setActiveTab('events')}
+                                type="button"
+                                className={activeTab === "events" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
+                                onClick={() => setActiveTab("events")}
                             >
-                                {activeTab === 'events' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
-                                <Calendar className="h-3 w-3" /> Schedule
+                                Events
                             </button>
                             <button
-                                className={`flex items-center gap-3 font-bold text-[10px] tracking-[0.4em] uppercase pb-6 transition-all relative ${activeTab === 'history' ? 'text-primary' : 'text-muted-foreground/40 hover:text-foreground'}`}
-                                onClick={() => setActiveTab('history')}
+                                type="button"
+                                className={activeTab === "history" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
+                                onClick={() => setActiveTab("history")}
                             >
-                                {activeTab === 'history' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary animate-in fade-in slide-in-from-bottom-2" />}
-                                <History className="h-3 w-3" /> History
+                                History
                             </button>
                         </>
                     )}
@@ -401,21 +505,136 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
                 {/* Collection Tab */}
                 {activeTab === 'collection' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {userArtworks.map((artwork: any) => (
-                            <ArtworkCard key={artwork.id} artwork={artwork} />
-                        ))}
-                        {isOwnProfile && (
-                            <button 
-                                onClick={() => setIsAddingArtwork(true)}
-                                className="aspect-[3/4] border-2 border-dashed border-border/20 flex flex-col items-center justify-center gap-4 hover:border-primary/40 hover:bg-secondary/5 transition-all group"
-                            >
-                                <div className="h-12 w-12 rounded-full bg-secondary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Grid className="h-6 w-6 text-muted-foreground" />
+                    <div className="space-y-8">
+                        {isOwnProfile && isAddingArtwork && (
+                            <div className="border border-border/15 p-6 space-y-5 bg-muted/10">
+                                <h3 className="font-serif text-xl">New listing</h3>
+                                <p className="text-sm text-muted-foreground">Empty fields show as &ldquo;Not provided&rdquo; on the piece page.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Title</label>
+                                        <Input value={newArtwork.title} onChange={(e) => setNewArtwork({ ...newArtwork, title: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-sm text-muted-foreground">Price (GBP)</label>
+                                        <Input type="number" min={0} step="0.01" value={newArtwork.price} onChange={(e) => setNewArtwork({ ...newArtwork, price: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-sm text-muted-foreground">Medium</label>
+                                        <Select
+                                            value={newArtwork.medium}
+                                            onChange={(e) =>
+                                                setNewArtwork({
+                                                    ...newArtwork,
+                                                    medium: e.target.value as ArtworkMedium,
+                                                })
+                                            }
+                                        >
+                                            {ARTWORK_MEDIA.map((m) => (
+                                                <option key={m} value={m}>
+                                                    {m}
+                                                </option>
+                                            ))}
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Images</label>
+                                        <ArtworkImageUpload
+                                            imageUrls={newArtwork.imageUrls}
+                                            onImagesChange={(urls) =>
+                                                setNewArtwork({ ...newArtwork, imageUrls: urls })
+                                            }
+                                        />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Origin</label>
+                                        <Textarea value={newArtwork.origin} onChange={(e) => setNewArtwork({ ...newArtwork, origin: e.target.value })} className="min-h-[64px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Process</label>
+                                        <Textarea value={newArtwork.process} onChange={(e) => setNewArtwork({ ...newArtwork, process: e.target.value })} className="min-h-[72px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Materials (comma-separated)</label>
+                                        <Input value={newArtwork.materialsText} onChange={(e) => setNewArtwork({ ...newArtwork, materialsText: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-sm text-muted-foreground">Time</label>
+                                        <Input value={newArtwork.timeSpent} onChange={(e) => setNewArtwork({ ...newArtwork, timeSpent: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-sm text-muted-foreground">People</label>
+                                        <Input value={newArtwork.peopleInvolved} onChange={(e) => setNewArtwork({ ...newArtwork, peopleInvolved: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Maker note</label>
+                                        <Textarea value={newArtwork.artisanStory} onChange={(e) => setNewArtwork({ ...newArtwork, artisanStory: e.target.value })} className="min-h-[72px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Meaning</label>
+                                        <Textarea value={newArtwork.pieceMeaning} onChange={(e) => setNewArtwork({ ...newArtwork, pieceMeaning: e.target.value })} className="min-h-[64px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Values</label>
+                                        <Textarea value={newArtwork.workValues} onChange={(e) => setNewArtwork({ ...newArtwork, workValues: e.target.value })} className="min-h-[64px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Impact</label>
+                                        <Textarea value={newArtwork.impactMetrics} onChange={(e) => setNewArtwork({ ...newArtwork, impactMetrics: e.target.value })} className="min-h-[64px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Aspirations</label>
+                                        <Textarea value={newArtwork.aspirations} onChange={(e) => setNewArtwork({ ...newArtwork, aspirations: e.target.value })} className="min-h-[64px]" />
+                                    </div>
+                                    <div className="space-y-1 md:col-span-2">
+                                        <label className="text-sm text-muted-foreground">Extra note</label>
+                                        <Textarea value={newArtwork.description} onChange={(e) => setNewArtwork({ ...newArtwork, description: e.target.value })} className="min-h-[56px]" />
+                                    </div>
+                                    <label className="flex items-center gap-2 text-sm md:col-span-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={newArtwork.isForSale}
+                                            onChange={(e) =>
+                                                setNewArtwork({
+                                                    ...newArtwork,
+                                                    isForSale: e.target.checked,
+                                                })
+                                            }
+                                            className="rounded-none border-border/40"
+                                        />
+                                        For sale
+                                    </label>
                                 </div>
-                                <span className="text-[10px] font-bold tracking-widest uppercase opacity-40 group-hover:opacity-100">Add New Masterpiece</span>
-                            </button>
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    <Button
+                                        size="sm"
+                                        onClick={handleAddArtwork}
+                                        disabled={artworkStatus === "saving" || !newArtwork.title.trim() || !newArtwork.imageUrls[0]}
+                                    >
+                                        {artworkStatus === "saving" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {artworkStatus === "success" ? "Saved" : "Publish"}
+                                    </Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingArtwork(false)}>
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
                         )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {userArtworks.map((artwork: any) => (
+                                <ArtworkCard key={artwork.id} artwork={artwork} />
+                            ))}
+                            {isOwnProfile && (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddingArtwork(true)}
+                                    className="aspect-[3/4] border border-dashed border-border/30 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:bg-muted/20"
+                                >
+                                    <Grid className="h-5 w-5 opacity-50" />
+                                    Add work
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -491,7 +710,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                 {activeTab === 'history' && (
                     <div className="space-y-12">
                         <div className="space-y-6">
-                            <h3 className="font-serif text-2xl">Studio Lifecycle</h3>
+                            <h3 className="font-serif text-2xl tracking-tight">Activity</h3>
                             <div className="border border-border/10 divide-y divide-border/10">
                                 {transactions.map((tx) => (
                                     <TransactionRow key={tx.id} tx={tx} />
@@ -574,7 +793,7 @@ function TransactionRow({ tx }: { tx: any }) {
                         href={`/artwork/${tx.itemId || tx.id}`} 
                         className="font-serif text-lg hover:text-primary transition-colors block"
                     >
-                        {tx.itemTitle || tx.title || "Untitled Masterpiece"}
+                        {tx.itemTitle || tx.title || "Untitled work"}
                     </Link>
                     <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">
                         {tx.type === 'sell' ? 'Sold to Collector' : 'Acquired from Artisan'} • {new Date(tx.date || tx.createdAt).toLocaleDateString()}

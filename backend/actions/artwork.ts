@@ -72,17 +72,18 @@ export async function createArtwork(rawData: any) {
         const data = createArtworkSchema.parse(rawData);
         logger.info('ARTWORK_CREATE_START', { artistId: data.artistId, title: data.title, source: 'backend' });
 
+        const { isForSale, ...rest } = data;
         const docRef = await addDoc(collection(db, "artworks"), {
-            ...data,
+            ...rest,
             createdAt: serverTimestamp(),
-            status: data.isForSale ? "available" : "collection",
-            visibility: "public"
+            status: isForSale ? "available" : "collection",
+            visibility: "public",
         });
 
         logger.info('ARTWORK_CREATE_SUCCESS', { artworkId: docRef.id, artistId: data.artistId, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
         logger.error('ARTWORK_CREATE_FAILURE', { error: error.message, source: 'backend' });
-        return { success: false, error: error.name === "ZodError" ? "Invalid masterpiece details" : "Failed to record masterwork" };
+        return { success: false, error: error.name === "ZodError" ? "Invalid artwork details" : "Could not save artwork" };
     }
 }

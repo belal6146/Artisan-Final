@@ -23,8 +23,8 @@ export default function EventsPage() {
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center">
-            <div className="uppercase tracking-[0.4em] text-[10px] font-bold opacity-30 animate-pulse">
-                Sychronizing Gatherings...
+            <div className="uppercase tracking-[0.35em] text-[10px] font-bold opacity-30 animate-pulse">
+                Loading events…
             </div>
         </div>
     );
@@ -46,9 +46,9 @@ export default function EventsPage() {
 
             {events.length === 0 ? (
                 <div className="py-32 text-center border border-dashed border-border/10 flex flex-col items-center justify-center space-y-8">
-                    <p className="font-serif text-3xl md:text-4xl tracking-tighter italic text-muted-foreground opacity-60">The gathering hall is currently quiet.</p>
-                    <Link href="/events/create" className="text-primary underline tracking-widest uppercase text-[10px] font-bold hover:opacity-70 transition-opacity">
-                        Initiate first broadcast
+                    <p className="font-serif text-2xl md:text-3xl tracking-tight text-muted-foreground font-light">No events listed yet.</p>
+                    <Link href="/events/create" className="text-[10px] font-bold tracking-[0.25em] uppercase text-muted-foreground hover:text-foreground transition-colors border-b border-border/30 pb-0.5">
+                        List the first one
                     </Link>
                 </div>
             ) : (

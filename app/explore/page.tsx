@@ -39,7 +39,8 @@ export default function ExplorePage() {
     }, []);
 
     const filteredArtworks = artworks.filter(a => {
-        const matchesMedium = activeFilter === 'all' || a.medium === activeFilter;
+        const matchesMedium =
+            activeFilter === "all" || (a.medium ?? "Other") === activeFilter;
         const matchesSearch = searchTerm === '' ||
             a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             a.artistName.toLowerCase().includes(searchTerm.toLowerCase());

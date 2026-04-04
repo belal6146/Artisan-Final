@@ -6,6 +6,10 @@ export interface User {
     role: 'artist' | 'client' | 'observer'
     createdAt: string
     bio?: string
+    /** Years in this practice — self-reported */
+    yearsOfPractice?: number
+    /** How they work; specific, not a slogan */
+    craftStatement?: string
     location?: string
     transactions?: {
         id: string

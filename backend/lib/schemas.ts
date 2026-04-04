@@ -10,7 +10,19 @@ export const updateProfileSchema = z.object({
     bio: z.string().max(500).optional(),
     location: z.string().max(100).optional(),
     avatarUrl: z.string().url().optional().or(z.literal("")),
+    yearsOfPractice: z.number().int().min(0).max(80).optional(),
+    craftStatement: z.string().max(2000).optional(),
 });
+
+const artworkMediumSchema = z.enum([
+    "Painting",
+    "Sculpture",
+    "Photography",
+    "Digital",
+    "Textile",
+    "Mixed Media",
+    "Other",
+]);
 
 // --- Artwork ---
 export const createArtworkSchema = z.object({
@@ -19,12 +31,15 @@ export const createArtworkSchema = z.object({
     price: z.number().min(0),
     imageUrl: z.string().url(),
     imageUrls: z.array(z.string().url()).optional(),
-    medium: z.string().optional(),
+    primaryImageIndex: z.number().int().min(0).optional(),
+    medium: artworkMediumSchema.default("Other"),
     artistId: idSchema,
     artistName: z.string().min(1),
+    location: z.string().max(200).optional(),
     isForSale: z.boolean().default(true),
     currency: currencySchema.default("GBP"),
-    // Provenance & Process — captured at submission, displayed on artwork page
+    tags: z.array(z.string()).optional(),
+    // Provenance & process; empty fields show as "Not provided" on the piece page
     origin: z.string().max(300).optional(),
     process: z.string().max(1000).optional(),
     materials: z.array(z.string()).optional(),
@@ -32,6 +47,9 @@ export const createArtworkSchema = z.object({
     artisanStory: z.string().max(2000).optional(),
     impactMetrics: z.string().max(500).optional(),
     aspirations: z.string().max(500).optional(),
+    peopleInvolved: z.string().max(500).optional(),
+    pieceMeaning: z.string().max(2000).optional(),
+    workValues: z.string().max(2000).optional(),
 });
 
 export const updateArtworkSchema = createArtworkSchema.partial().omit({ artistId: true });

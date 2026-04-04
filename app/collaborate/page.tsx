@@ -70,15 +70,15 @@ export default function CollaboratePage() {
                         Each listing is posted by a real person with a specific need.
                     </p>
                 </div>
-                <Button size="lg" className="h-16 px-12 rounded-none bg-primary text-[11px] font-bold tracking-[0.2em] uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all" asChild>
-                    <Link href="/collaborate/create">POST A CALL</Link>
+                <Button size="lg" variant="outline" className="h-12 px-10 rounded-none text-[10px] font-bold tracking-[0.2em] uppercase border-border/30" asChild>
+                    <Link href="/collaborate/create">Post a call</Link>
                 </Button>
             </div>
 
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-40 text-muted-foreground animate-pulse">
                     <Loader2 className="h-8 w-8 animate-spin mb-4 opacity-20" />
-                    <p className="text-[10px] font-bold tracking-[0.3em] uppercase">Searching Opportunities</p>
+                    <p className="text-[10px] font-bold tracking-[0.3em] uppercase opacity-50">Loading</p>
                 </div>
             ) : collaborations.length === 0 ? (
                 <div className="text-center py-40 border border-dashed border-border/20">

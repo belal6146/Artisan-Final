@@ -8,12 +8,12 @@ export interface Artwork {
     imageUrl?: string;
     imageUrls?: string[];
     primaryImageIndex?: number;
-    medium: ArtworkMedium;
-    location: string;
+    medium?: ArtworkMedium;
+    location?: string;
     price?: number;
     currency: string;
     visibility: 'public' | 'private';
-    tags: string[];
+    tags?: string[];
     createdAt: string;
     description?: string;
     status: 'available' | 'collection';
@@ -25,6 +25,9 @@ export interface Artwork {
     artisanStory?: string;    // The maker's specific words about this piece
     impactMetrics?: string;   // Who benefits — real, not marketing
     aspirations?: string;     // What the artist is working toward
+    peopleInvolved?: string; // Who worked on it (names, roles, workshop size)
+    pieceMeaning?: string;    // What the piece carries for the maker or community
+    workValues?: string;      // What the maker respects in this work (craft, ethics, tradition)
     // Ethical Commerce
     priceBreakdown?: {
         artisan: number;

@@ -33,7 +33,7 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-12 duration-200 delay-150">
                     <Link href="/explore">
-                        <Button size="lg" className="shadow-2xl">
+                        <Button size="lg" className="h-12 px-10">
                             {t('explore_gallery')} <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     </Link>

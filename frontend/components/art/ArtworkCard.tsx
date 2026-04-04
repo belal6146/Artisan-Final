@@ -30,7 +30,7 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                             alt={artwork.title || "Untitled Artwork"}
                             fill
                             priority={priority}
-                            className="object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
+                            className="object-cover grayscale group-hover:grayscale-0 group-hover:scale-[1.02] transition-all duration-700"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
                                 setHasError(true);
@@ -77,7 +77,8 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                         {artwork.artistName}
                     </Link>
                     <p className="text-[10px] text-muted-foreground/40 font-medium tracking-tight">
-                        {artwork.medium}{artwork.location ? ` / ${artwork.location}` : ""}
+                        {artwork.medium ?? "Other"}
+                        {artwork.location ? ` / ${artwork.location}` : ""}
                     </p>
                 </div>
 

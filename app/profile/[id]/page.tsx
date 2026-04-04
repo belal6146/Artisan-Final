@@ -2,8 +2,6 @@ import { getUserById } from "@/backend/actions/profile";
 import { getArtworksByArtist } from "@/backend/actions/artwork";
 import { UserProfileClient } from "@/frontend/components/profile/UserProfileClient";
 import { notFound } from "next/navigation";
-import { DetailedArtistProfile } from "@/types/schema";
-
 interface PageProps {
     params: Promise<{ id: string }>;
 }
@@ -21,12 +19,9 @@ export default async function ProfilePage({ params }: PageProps) {
         notFound();
     }
  
-    // Adapt AppUser to DetailedArtistProfile for the view component if needed
-    const profile: any = {
+    const profile: Record<string, unknown> = {
         ...user,
-        location: user.location || "Global Business",
-        mediums: [], 
-        verificationStatus: 'verified' 
+        location: user.location ?? "",
     };
  
     // Helper function to serialize Firestore Timestamps
