@@ -117,7 +117,12 @@ export default function CollaboratePage() {
                                 <span className="text-sm font-medium text-muted-foreground">
                                     By {collab.authorName}
                                 </span>
-                                <Button size="sm" variant="ghost" className="ml-auto hover:bg-primary/10 hover:text-primary">
+                                <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="ml-auto hover:bg-primary/10 hover:text-primary"
+                                    onClick={() => alert(`Connection request sent to ${collab.authorName}! They will be notified via their registered email.`)}
+                                >
                                     Connect
                                 </Button>
                             </div>

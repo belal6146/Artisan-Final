@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function Header() {
     const { user, logout } = useAuth();
@@ -52,6 +53,7 @@ export function Header() {
                     <span className="h-6 w-[1px] bg-border/10 hidden sm:block" />
                     {user ? (
                         <div className="flex items-center gap-6">
+                            <NotificationBell />
                             <Link href={`/profile/${user.uid}`} className="flex items-center gap-2 group">
                                 <div className="h-8 w-8 rounded-full bg-secondary/30 flex items-center justify-center ring-1 ring-border/20 group-hover:ring-primary/40 transition-all">
                                     <User className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />

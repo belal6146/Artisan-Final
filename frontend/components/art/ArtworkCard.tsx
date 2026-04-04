@@ -19,7 +19,7 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
     const [hasError, setHasError] = useState(false);
     
     // Robust image selection: Primary URL > First URL in array > null
-    const displayImage = artwork.imageUrl || (artwork.imageUrls && artwork.imageUrls.length > 0 ? artwork.imageUrls[0] : null);
+    const displayImage = artwork.imageUrl?.trim() || (artwork.imageUrls && artwork.imageUrls.length > 0 ? artwork.imageUrls[0]?.trim() : null);
 
     return (
         <div className={cn("group block space-y-4 transition-all duration-500", className)}>
@@ -28,14 +28,16 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                     {displayImage && displayImage.startsWith('http') && !hasError ? (
                         <Image
                             src={displayImage}
-                            alt={artwork.title}
+                            alt={artwork.title || "Untitled Artwork"}
                             fill
                             priority={priority}
                             className="object-cover grayscale hover:grayscale-0 transition-all duration-1000"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
                                 setHasError(true);
-                                logger.error("Artwork image failed to load", { artworkId: artwork.id, title: artwork.title, url: displayImage });
+                                logger.error(`Artwork image failure: ${artwork.title || 'Untitled'} (${artwork.id || 'N/A'}) [URL: ${displayImage}]`, { 
+                                    timestamp: new Date().toISOString() 
+                                });
                             }}
                         />
                     ) : (

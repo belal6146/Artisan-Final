@@ -59,6 +59,21 @@ export default function EventDetailPage() {
         setError(null);
 
         try {
+            // New Paid Checkout Flow
+            if (event.price > 0) {
+                const res = await fetch('/api/checkout', {
+                    method: 'POST',
+                    body: JSON.stringify({ itemId: event.id, type: 'event' }),
+                });
+                const { checkoutUrl } = await res.json();
+                if (checkoutUrl) {
+                    router.push(checkoutUrl);
+                    return;
+                }
+                throw new Error("Failed to initialize checkout");
+            }
+
+            // Free Event Flow
             const result = await createRSVP({
                 eventId: event.id,
                 userId: user.uid,
@@ -108,7 +123,14 @@ export default function EventDetailPage() {
                 <div className="lg:col-span-2 space-y-8">
                     <div className="relative aspect-video w-full rounded-sm overflow-hidden bg-secondary/20">
                         {event.imageUrl && (
-                            <Image src={event.imageUrl} alt={event.title} fill className="object-cover" priority />
+                            <Image 
+                                src={event.imageUrl} 
+                                alt={event.title} 
+                                fill 
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                                className="object-cover" 
+                                priority 
+                            />
                         )}
                     </div>
 

@@ -34,9 +34,10 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
 
         try {
             for (const file of files) {
-                // Determine file path: users/{uid}/artworks/{timestamp}_{filename}
+                // Determine file path: users/{uid}/artworks/{timestamp}_{random}_{filename}
                 const timestamp = Date.now();
-                const storageRef = ref(storage, `users/${user.uid}/artworks/${timestamp}_${file.name}`);
+                const random = Math.random().toString(36).substring(2, 8);
+                const storageRef = ref(storage, `users/${user.uid}/artworks/${timestamp}_${random}_${file.name}`);
 
                 await uploadBytes(storageRef, file);
                 const downloadUrl = await getDownloadURL(storageRef);
@@ -78,6 +79,7 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
                             src={url}
                             alt={`Artwork image ${index + 1}`}
                             fill
+                            sizes="(max-width: 768px) 50vw, 33vw"
                             className="object-cover"
                         />
 

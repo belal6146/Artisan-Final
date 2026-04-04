@@ -11,28 +11,26 @@ interface PageProps {
 export default async function ProfilePage({ params }: PageProps) {
     const { id } = await params;
 
-    // 1. Try to fetch artist profile (Public Figure)
-    const user = await getUserById(id);
-
+    // 1. Fetch artist profile and works in parallel to eliminate request waterfall
+    const [user, userArtworksRaw] = await Promise.all([
+        getUserById(id),
+        getArtworksByArtist(id)
+    ]);
+ 
     if (!user) {
         notFound();
     }
-
+ 
     // Adapt AppUser to DetailedArtistProfile for the view component if needed
-    // or update the component to accept AppUser. 
-    // For now, mapping broadly:
     const profile: any = {
         ...user,
         location: user.location || "Global Business",
-        mediums: [], // User type doesn't have mediums yet, assuming empty or need schema update
-        verificationStatus: 'verified' // Defaulting for display
+        mediums: [], 
+        verificationStatus: 'verified' 
     };
-
+ 
     // Helper function to serialize Firestore Timestamps
     const toPlain = (obj: any) => JSON.parse(JSON.stringify(obj));
-
-    // 2. Fetch works from Firestore
-    const userArtworksRaw = await getArtworksByArtist(id);
     const userArtworks = toPlain(userArtworksRaw);
 
     return (

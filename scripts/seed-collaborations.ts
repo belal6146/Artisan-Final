@@ -1,5 +1,5 @@
-import { config } from "dotenv";
-config({ path: ".env.local" });
+// import { config } from "dotenv";
+// config({ path: ".env.local" });
 
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc } from "firebase/firestore";

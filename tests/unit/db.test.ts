@@ -18,19 +18,20 @@ describe('Artworks DB Service', () => {
         vi.clearAllMocks();
     });
 
-    it('should fetch and return all artworks correctly sorted by date', async () => {
+    it('should fetch artworks with correct query constraints', async () => {
         const mockDocs = {
             docs: [
                 { id: '1', data: () => ({ title: 'Artwork A', createdAt: '2023-01-01', status: 'available' }) },
-                { id: '2', data: () => ({ title: 'Artwork B', createdAt: '2023-01-02', status: 'available' }) }
             ]
         };
         vi.mocked(firestore.getDocs).mockResolvedValueOnce(mockDocs as any);
 
         const result = await getArtworks();
 
-        expect(result.length).toBe(2);
-        expect(result[0].title).toBe('Artwork B'); // Newest first
+        expect(firestore.query).toHaveBeenCalled();
+        expect(firestore.where).toHaveBeenCalledWith("status", "==", "available");
+        expect(firestore.orderBy).toHaveBeenCalledWith("createdAt", "desc");
+        expect(result.length).toBe(1);
     });
 
     it('should fetch a single artwork by ID correctly', async () => {

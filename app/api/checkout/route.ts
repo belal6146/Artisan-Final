@@ -11,11 +11,11 @@ export async function POST(request: Request) {
         // 1. Validate Item or Support Action
         let itemTitle = "";
         let itemPrice = 0;
-        let itemCurrency = "EUR";
+        let itemCurrency = "GBP"; // Platform Standard
 
         if (type === 'support') {
             itemTitle = "Studio Patronage Support";
-            itemPrice = 5; // Flat €5 for the patron button
+            itemPrice = 5; // Flat £5 for the patron button
         } else {
             const collectionName = type === 'artwork' ? 'artworks' : 'events';
             const docRef = doc(db, collectionName, itemId);
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
             const item = docSnap.data() as any;
             itemTitle = item.title;
             itemPrice = item.price || 0;
-            itemCurrency = item.currency || "EUR";
+            itemCurrency = item.currency || "GBP";
         }
 
         // 2. Create Payment Session (Stripe PaymentIntent)

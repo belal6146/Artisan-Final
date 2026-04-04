@@ -1,22 +1,25 @@
-import { collection, getDocs, doc, getDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/backend/config/firebase";
 import { Event } from "@/types/schema";
 import { logger } from "@/backend/lib/logger";
 
-export async function getEvents(): Promise<Event[]> {
+export async function getEvents(maxResults: number = 20): Promise<Event[]> {
     try {
-        const querySnapshot = await getDocs(collection(db, "events"));
-        const allEvents = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
+        // Optimized: Database level filter and sort
+        const q = query(
+            collection(db, "events"),
+            where("status", "==", "published"),
+            orderBy("startTime", "asc"),
+            limit(maxResults)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const events = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
 
-        // Filter and sort in code to avoid composite index requirement
-        const publishedEvents = allEvents
-            .filter(event => event.status === 'published')
-            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-        logger.info("Fetched published events", { count: publishedEvents.length });
-        return publishedEvents;
+        logger.info("Fetched published events", { count: events.length });
+        return events;
     } catch (error: any) {
-        logger.error("Error fetching events", { error: error.message, stack: error.stack });
+        logger.error(`Error fetching events: ${error.message || error}`, { stack: error.stack });
         return [];
     }
 }
