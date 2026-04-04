@@ -12,45 +12,30 @@ export interface NotificationMetadata {
     [key: string]: any;
 }
 
+import { createNotificationSchema } from "@/backend/lib/schemas";
+
 export async function createNotification(
     userId: string,
-    type: NotificationType,
+    type: string,
     message: string,
-    metadata: NotificationMetadata = {}
+    metadata: any = {}
 ) {
-    if (!userId) {
-        logger.error("Notification creation failed: missing userId", { type, message });
-        throw new Error("User ID is required");
-    }
+    if (!userId) throw new Error("User ID is required");
 
     try {
-        logger.info("Creating notification", { userId, type, metadata });
-
-        const notificationData = {
-            userId,
-            type,
-            message,
-            metadata,
+        const data = createNotificationSchema.parse({ userId, type, message, metadata });
+        
+        const docRef = await addDoc(collection(db, "notifications"), {
+            ...data,
             read: false,
             createdAt: new Date().toISOString()
-        };
-
-        const docRef = await addDoc(collection(db, "notifications"), notificationData);
-
-        logger.info("Notification created successfully", {
-            notificationId: docRef.id,
-            userId,
-            type
         });
+
+        logger.info('SYSTEM_SUCCESS', { action: 'create_notification', notificationId: docRef.id, userId, source: 'backend' });
 
         return { success: true, id: docRef.id };
     } catch (error: any) {
-        logger.error("Failed to create notification", {
-            error: error.message,
-            stack: error.stack,
-            userId,
-            type
-        });
+        logger.error('SYSTEM_ERROR', { action: 'create_notification', error: error.message, userId, source: 'backend' });
         return { success: false, error: error.message };
     }
 }

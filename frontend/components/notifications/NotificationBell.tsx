@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/frontend/lib/utils";
 import Link from "next/link";
 
+import { logger } from "@/backend/lib/logger";
+
 export function NotificationBell() {
     const { user } = useAuth();
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -40,8 +42,8 @@ export function NotificationBell() {
         try {
             const docRef = doc(db, "notifications", id);
             await updateDoc(docRef, { read: true });
-        } catch (e) {
-            console.error("Failed to mark read:", e);
+        } catch (e: any) {
+            logger.error('SYSTEM_ERROR', { userId: user?.uid, message: "Mark as read failed", error: e.message, source: 'frontend' });
         }
     };
 
@@ -51,8 +53,8 @@ export function NotificationBell() {
                 updateDoc(doc(db, "notifications", n.id), { read: true })
             );
             await Promise.all(promises);
-        } catch (e) {
-            console.error(e);
+        } catch (e: any) {
+            logger.error('SYSTEM_ERROR', { userId: user?.uid, message: "Mark all as read failed", error: e.message, source: 'frontend' });
         }
     };
 

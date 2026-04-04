@@ -4,12 +4,10 @@ import { db } from "@/backend/config/firebase";
 import { logger } from "@/backend/lib/logger";
 import { User as AppUser } from "@/types";
 
+import { userSchema } from "@/backend/lib/schemas";
+
 /**
  * Syncs the authenticated Firebase User to Firestore.
- * - If the user document does not exist, it creates one.
- * - If it exists, it updates the `lastSeen` field (optional, good for activity tracking).
- * 
- * @param user - The Firebase Auth user object
  */
 export async function syncUserToFirestore(user: FirebaseUser): Promise<void> {
     if (!user) return;
@@ -19,37 +17,30 @@ export async function syncUserToFirestore(user: FirebaseUser): Promise<void> {
     try {
         const userSnap = await getDoc(userRef);
 
-        if (userSnap.exists()) {
-            // User exists, just update metadata if needed
-            // For now, we just log it. In a real app, optimize this to not write on every page load.
-            // logger.info("User logged in", { uid: user.uid, email: user.email });
-            // await updateDoc(userRef, { lastSeen: serverTimestamp() });
-        } else {
+        if (!userSnap.exists()) {
             // Create new user record
-            const newUser: AppUser = {
+            const userData = userSchema.parse({
                 uid: user.uid,
                 displayName: user.displayName,
                 email: user.email,
                 photoURL: user.photoURL,
-                role: "observer", // Default role
-                createdAt: new Date().toISOString(),
-            };
-
-            await setDoc(userRef, {
-                ...newUser,
-                createdAt: serverTimestamp(), // Use server timestamp for consistency
+                role: "observer",
             });
 
-            logger.info('USER_PROFILE_UPDATED', { uid: user.uid, role: newUser.role, isNew: true, source: 'backend' });
+            await setDoc(userRef, {
+                ...userData,
+                createdAt: serverTimestamp(),
+            });
+
+            logger.info('USER_CREATE_SUCCESS', { userId: user.uid, source: 'backend' });
         }
-    } catch (error) {
-        logger.error('SYSTEM_ERROR', { 
-            message: "Failed to sync user to Firestore", 
+    } catch (error: any) {
+        logger.error('USER_CREATE_FAILURE', { 
+            message: "Failed to sync user", 
             uid: user.uid,
-            error,
+            error: error.message,
             source: 'backend'
         });
-        // We don't block the UI here, but this is a critical failure for "Trust" features.
     }
 }
 

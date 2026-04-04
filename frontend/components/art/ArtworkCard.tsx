@@ -35,7 +35,7 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
                                 setHasError(true);
-                                logger.error('CONTENT_FLAGGED', { 
+                                logger.error('ARTWORK_FETCH_FAILED', { 
                                     message: `Artwork image failure: ${artwork.title || 'Untitled'}`,
                                     artworkId: artwork.id,
                                     imageUrl: displayImage,

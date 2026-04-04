@@ -16,7 +16,7 @@ export async function getArtworks(maxResults: number = 20): Promise<Artwork[]> {
         const querySnapshot = await getDocs(q);
         const artworks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Artwork));
 
-        logger.info('ARTWORK_VISIBILITY_CHANGED', { count: artworks.length, source: 'backend' });
+        logger.info('ARTWORK_FETCH_SUCCESS', { count: artworks.length, source: 'backend' });
         return artworks;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { 

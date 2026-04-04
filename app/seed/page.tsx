@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { seedDatabase } from "@/backend/lib/seed";
+import { logger } from "@/backend/lib/logger";
 
 export default function SeedPage() {
     const [status, setStatus] = useState("Idle");
@@ -11,12 +12,14 @@ export default function SeedPage() {
     const handleSeed = async () => {
         setLoading(true);
         setStatus("Starting seed...");
+        logger.info('SYSTEM_START', { action: 'seed_database', source: 'frontend' });
 
         try {
             await seedDatabase();
             setStatus("Success! Database populated.");
+            logger.info('SYSTEM_SUCCESS', { action: 'seed_database', source: 'frontend' });
         } catch (error: any) {
-            console.error(error);
+            logger.error('SYSTEM_ERROR', { action: 'seed_database', error: error.message, source: 'frontend' });
             setStatus(`Error: ${error.message}`);
         } finally {
             setLoading(false);

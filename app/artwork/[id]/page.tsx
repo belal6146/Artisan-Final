@@ -52,11 +52,11 @@ export default function ArtworkDetailPage() {
 
             const { checkoutUrl } = await res.json();
             if (checkoutUrl) {
-                logger.info('COMMERCE_CHECKOUT_STARTED', { itemId: id, userId: user?.uid, source: 'frontend' });
+                logger.info('COMMERCE_CHECKOUT_START', { itemId: id, userId: user?.uid, source: 'frontend' });
                 router.push(checkoutUrl);
             }
         } catch (e: any) {
-            logger.error('COMMERCE_PAYMENT_FAILED', { itemId: id, userId: user?.uid, error: e.message, source: 'frontend' });
+            logger.error('COMMERCE_CHECKOUT_FAILURE', { itemId: id, userId: user?.uid, error: e.message, source: 'frontend' });
             setPurchasing(false);
         }
     };

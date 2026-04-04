@@ -4,19 +4,26 @@ import { db } from "@/backend/config/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { logger } from "@/backend/lib/logger";
 
-export async function updateUserProfile(uid: string, data: { bio?: string; location?: string; avatarUrl?: string }) {
-    if (!uid) throw new Error("User ID is required");
+import { updateProfileSchema } from "@/backend/lib/schemas";
 
+export async function updateUserProfile(uid: string, rawData: any) {
     try {
-        logger.info("Updating user profile", { uid });
+        const data = updateProfileSchema.parse(rawData);
+        logger.info('PROFILE_UPDATE_START', { userId: uid, source: 'backend' });
+
         const userRef = doc(db, "users", uid);
         await updateDoc(userRef, {
             ...data,
             updatedAt: new Date().toISOString()
         });
+
+        logger.info('PROFILE_UPDATE_SUCCESS', { userId: uid, source: 'backend' });
         return { success: true };
     } catch (error: any) {
-        logger.error("Failed to update profile", { uid, error: error.message });
-        return { success: false, error: error.message };
+        logger.error('PROFILE_UPDATE_FAILURE', { error, userId: uid, source: 'backend' });
+        return { 
+            success: false, 
+            error: error.name === "ZodError" ? "Invalid profile data" : "Failed to update profile" 
+        };
     }
 }

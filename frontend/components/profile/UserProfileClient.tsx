@@ -84,8 +84,8 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
             const colabs = await getCollaborationsByAuthorId(targetUid);
             setUserCollaborations(colabs);
 
-        } catch (e) {
-            console.error("Failed to refresh profile data:", e);
+        } catch (e: any) {
+            logger.error('SYSTEM_ERROR', { message: "Failed to refresh profile data", error: e.message, source: 'frontend' });
         }
     };
 
@@ -140,7 +140,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
             const { checkoutUrl } = await res.json();
             if (checkoutUrl) {
-                logger.info('COMMERCE_CHECKOUT_STARTED', { userId: user.uid, itemId: profile.uid, source: 'frontend' });
+                logger.info('COMMERCE_CHECKOUT_START', { userId: user.uid, itemId: profile.uid, source: 'frontend' });
                 router.push(checkoutUrl);
             }
         } catch (e: any) {
@@ -156,7 +156,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
             const { createJournalEntry } = await import("@/backend/actions/journal");
             const result = await createJournalEntry(user.uid, newJournal);
             if (result.success) {
-                logger.info('USER_RECORD_UPDATED', { message: "Journal entry created", userId: user.uid, source: 'frontend' });
+                logger.info('JOURNAL_CREATE_SUCCESS', { message: "Journal entry created", userId: user.uid, source: 'frontend' });
                 setJournalStatus('success');
                 await refreshProfileData();
                 setTimeout(() => {
@@ -181,7 +181,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         const result = await updateUserProfile(user.uid, { bio, location, avatarUrl });
 
         if (result.success) {
-            logger.info('USER_RECORD_UPDATED', { userId: user.uid, source: 'frontend' });
+            logger.info('PROFILE_UPDATE_SUCCESS', { userId: user.uid, source: 'frontend' });
             setStatus('success');
             setTimeout(() => {
                 setIsEditing(false);
@@ -216,7 +216,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
             });
 
             if (result.success) {
-                logger.info('ARTWORK_UPLOAD_SUCCESS', { userId: user.uid, artworkId: result.id, source: 'frontend' });
+                logger.info('ARTWORK_CREATE_SUCCESS', { userId: user.uid, artworkId: result.id, source: 'frontend' });
                 setArtworkStatus('success');
                 await refreshProfileData(); 
                 setTimeout(() => {
@@ -226,11 +226,11 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                 }, 1000);
             } else {
                 setArtworkStatus('error');
-                logger.error('ARTWORK_UPLOAD_FAILURE', { error: result.error, source: 'frontend' });
+                logger.error('ARTWORK_CREATE_FAILURE', { error: result.error, source: 'frontend' });
                 setTimeout(() => setArtworkStatus('idle'), 3000);
             }
         } catch (e: any) {
-            logger.error('ARTWORK_UPLOAD_FAILURE', { error: e.message, source: 'frontend' });
+            logger.error('ARTWORK_CREATE_FAILURE', { error: e.message, source: 'frontend' });
             setArtworkStatus('error');
             setTimeout(() => setArtworkStatus('idle'), 3000);
         }

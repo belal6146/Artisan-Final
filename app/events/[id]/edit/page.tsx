@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateEvent } from "@/backend/actions/event";
 import { getEventById } from "@/backend/db/events";
+import { logger } from "@/backend/lib/logger";
 import { EventType } from "@/types/schema";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/backend/config/firebase";
@@ -85,8 +86,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                 }
 
                 setIsLoading(false);
-            } catch (err) {
-                console.error("Error fetching event:", err);
+            } catch (err: any) {
+                logger.error('SYSTEM_ERROR', { eventId: id, userId: user.uid, message: "Fetch event to edit failed", error: err.message, source: 'frontend' });
                 setError("Failed to load event details");
                 setIsLoading(false);
             }
@@ -138,7 +139,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
             return downloadURL;
         } catch (err: any) {
-            console.error("Image upload error:", err);
+            logger.error('SYSTEM_ERROR', { userId: user.uid, message: "Edit image upload failed", error: err.message, source: 'frontend' });
             setError("Failed to upload image. Please try again.");
             return null;
         } finally {
@@ -173,6 +174,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                 imageUrl = "";
             }
 
+            logger.info('EVENT_UPDATE_START', { eventId: id, userId: user.uid, source: 'frontend' });
             const result = await updateEvent(id, user.uid, {
                 title: formData.title,
                 description: formData.description,
@@ -188,8 +190,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             });
 
             if (result.success) {
+                logger.info('EVENT_UPDATE_SUCCESS', { eventId: id, userId: user.uid, source: 'frontend' });
                 router.push(`/events/${id}`);
             } else {
+                logger.error('EVENT_UPDATE_FAILURE', { eventId: id, userId: user.uid, error: result.error, source: 'frontend' });
                 setError(result.error || "Failed to update event");
                 setIsSubmitting(false);
             }

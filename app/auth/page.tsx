@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
+import { logger } from "@/backend/lib/logger";
 
 export default function AuthPage() {
     const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
@@ -27,12 +28,21 @@ export default function AuthPage() {
 
         try {
             if (isLogin) {
+                logger.info('AUTH_LOGIN_START', { email, source: 'frontend' });
                 await signInWithEmail(email, password);
+                logger.info('AUTH_LOGIN_SUCCESS', { email, source: 'frontend' });
             } else {
+                logger.info('USER_CREATE_START', { email, source: 'frontend' });
                 await signUpWithEmail(email, password);
+                logger.info('USER_CREATE_SUCCESS', { email, source: 'frontend' });
             }
             router.push(redirect);
         } catch (err: any) {
+             if (isLogin) {
+                logger.error('AUTH_LOGIN_FAILURE', { email, error: err.message, source: 'frontend' });
+            } else {
+                logger.error('USER_CREATE_FAILURE', { email, error: err.message, source: 'frontend' });
+            }
             setError(err.message || "Authentication failed");
         } finally {
             setLoading(false);
@@ -41,10 +51,13 @@ export default function AuthPage() {
 
     const handleGoogleSignIn = async () => {
         setError(null);
+        logger.info('AUTH_LOGIN_START', { method: 'google', source: 'frontend' });
         try {
             await signInWithGoogle();
+            logger.info('AUTH_LOGIN_SUCCESS', { method: 'google', source: 'frontend' });
             router.push(redirect);
         } catch (err: any) {
+            logger.error('AUTH_LOGIN_FAILURE', { method: 'google', error: err.message, source: 'frontend' });
             setError(err.message);
         }
     };

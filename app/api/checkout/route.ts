@@ -4,28 +4,30 @@ import { db } from '@/backend/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { logger } from '@/backend/lib/logger';
 
+import { checkoutSchema } from '@/backend/lib/schemas';
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { itemId, type } = body; // type: 'artwork' | 'event' | 'support'
+        const { itemId, type } = checkoutSchema.parse(body);
 
         // 1. Validate Item or Support Action
         let itemTitle = "";
         let itemPrice = 0;
-        let itemCurrency = "GBP"; // Platform Standard
+        let itemCurrency = "GBP"; 
         let imageUrl = "";
 
         if (type === 'support') {
             itemTitle = "Studio Patronage Support";
-            itemPrice = 5; // Flat £5 for the patron button
-            imageUrl = "/images/support-badge.png"; // Placeholder badge
+            itemPrice = 5; 
+            imageUrl = "/images/support-badge.png";
         } else {
             const collectionName = type === 'artwork' ? 'artworks' : 'events';
             const docRef = doc(db, collectionName, itemId);
             const docSnap = await getDoc(docRef);
 
             if (!docSnap.exists()) {
-                logger.warn('RULE_VIOLATION_ATTEMPT', { itemId, type, message: 'Attempted checkout of non-existent item', source: 'backend' });
+                logger.warn('SECURITY_VIOLATION', { itemId, type, message: 'Requested non-existent item', source: 'backend' });
                 return NextResponse.json({ error: 'Item not found in database' }, { status: 404 });
             }
 
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
             imageUrl = item.imageUrl || "";
         }
 
-        // 2. Create Payment Session (Stripe PaymentIntent)
+        // 2. Create Payment Session
         const { id: sessionId, clientSecret } = await PaymentService.createSession({
             id: itemId,
             title: itemTitle,
@@ -44,15 +46,14 @@ export async function POST(request: Request) {
             currency: itemCurrency
         });
 
-        logger.info('COMMERCE_CHECKOUT_STARTED', { itemId, type, sessionId, source: 'backend' });
+        logger.info('COMMERCE_CHECKOUT_START', { itemId, type, sessionId, source: 'backend' });
 
-        // 3. Return Checkout URL with clientSecret for the frontend
         return NextResponse.json({
             checkoutUrl: `/checkout/${sessionId}?type=${type}&itemId=${itemId}&clientSecret=${clientSecret}&title=${encodeURIComponent(itemTitle)}&imageUrl=${encodeURIComponent(imageUrl)}`
         });
 
     } catch (error: any) {
-        logger.error('COMMERCE_PAYMENT_FAILED', { error, action: 'CREATE_CHECKOUT_SESSION', source: 'backend' });
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        logger.error('COMMERCE_CHECKOUT_FAILURE', { error: error.message, action: 'CREATE_SESSION', source: 'backend' });
+        return NextResponse.json({ error: error.name === 'ZodError' ? "Invalid request data" : "Commerce engine error" }, { status: 500 });
     }
 }

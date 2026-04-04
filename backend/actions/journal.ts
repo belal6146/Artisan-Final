@@ -16,20 +16,28 @@ export interface JournalEntry {
     createdAt: string;
 }
 
-export async function createJournalEntry(userId: string, data: { title: string; content: string; imageUrl?: string; category?: string; author?: string }) {
+import { createJournalSchema } from "@/backend/lib/schemas";
+
+export async function createJournalEntry(userId: string, rawData: any) {
     try {
-        const entry = {
+        const data = createJournalSchema.parse(rawData);
+        logger.info('JOURNAL_CREATE_START', { userId, title: data.title, source: 'backend' });
+        
+        const docRef = await addDoc(collection(db, "users", userId, "journal_entries"), {
             userId,
             ...data,
             excerpt: data.content.substring(0, 160) + "...",
             createdAt: new Date().toISOString()
-        };
-        const docRef = await addDoc(collection(db, "users", userId, "journal_entries"), entry);
-        logger.info('JOURNAL_ENTRY_CREATED', { userId, entryId: docRef.id, source: 'backend' });
+        });
+        
+        logger.info('JOURNAL_CREATE_SUCCESS', { userId, entryId: docRef.id, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
-        logger.error('SYSTEM_ERROR', { error, userId, action: 'createJournalEntry', source: 'backend' });
-        return { success: false, error: error.message };
+        logger.error('JOURNAL_CREATE_FAILURE', { error, userId, source: 'backend' });
+        return { 
+            success: false, 
+            error: error.name === "ZodError" ? "Invalid chronicle format" : "Failed to record chronicle" 
+        };
     }
 }
 

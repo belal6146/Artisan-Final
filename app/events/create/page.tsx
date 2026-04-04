@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { createEvent } from "@/backend/actions/event";
 import { EventType } from "@/types/schema";
+import { logger } from "@/backend/lib/logger";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/backend/config/firebase";
 import { Upload, X } from "lucide-react";
@@ -70,7 +71,7 @@ export default function CreateEventPage() {
 
             return downloadURL;
         } catch (err: any) {
-            console.error("Image upload error:", err);
+            logger.error('SYSTEM_ERROR', { userId: user.uid, message: "Image upload failed", error: err.message, source: 'frontend' });
             setError("Failed to upload image. Please try again.");
             return null;
         } finally {
@@ -96,6 +97,7 @@ export default function CreateEventPage() {
         const endTime = new Date(new Date(`${date}T${time}`).getTime() + duration * 60 * 60 * 1000).toISOString();
 
         try {
+            logger.info('EVENT_CREATE_START', { userId: user.uid, source: 'frontend' });
             // Upload image if provided
             let imageUrl: string | undefined = undefined;
             if (imageFile) {
@@ -125,12 +127,15 @@ export default function CreateEventPage() {
             });
 
             if (result.success) {
+                logger.info('EVENT_CREATE_SUCCESS', { userId: user.uid, eventId: result.id, source: 'frontend' });
                 router.push('/events');
             } else {
+                logger.error('EVENT_CREATE_FAILURE', { userId: user.uid, error: result.error, source: 'frontend' });
                 setError(result.error || "Failed to create event");
                 setIsSubmitting(false);
             }
         } catch (err: any) {
+            logger.error('EVENT_CREATE_FAILURE', { userId: user.uid, error: err.message, source: 'frontend' });
             setError(err.message || "An unexpected error occurred");
             setIsSubmitting(false);
         }

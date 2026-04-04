@@ -41,16 +41,26 @@ service cloud.firestore {
     // 4. Users & Private Data
     match /users/{userId} {
       allow read: if true; // Basic profile is public
-      allow write: if isOwner(userId);
+      
+      // Strict role enforcement on creation
+      allow create: if isOwner(userId) 
+                    && request.resource.data.role == 'observer'
+                    && request.resource.data.keys().hasAll(['uid', 'role', 'createdAt']);
+                    
+      // Prevent users from escalating their own role or changing creation dates
+      allow update: if isOwner(userId) 
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.createdAt == resource.data.createdAt;
       
       // Private User Subcollections
       match /notifications/{notifId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if false; // System-only
       }
       
       match /transactions/{txId} {
         allow read: if isOwner(userId);
-        allow write: if isOwner(userId); // Recorded after purchase
+        allow write: if false; // System-only (recorded by secure actions/webhooks)
       }
       
       match /journal_entries/{entryId} {
@@ -64,14 +74,14 @@ service cloud.firestore {
        allow read: if true;
     }
 
-    // 6. Global Notifications Collection (Used for real-time alerting)
+    // 6. Global Notifications Collection - HARDENED
     match /notifications/{notifId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated(); // Allowed for system-wide triggering
+      allow create: if false; // System-only/Backend-only
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // 6. RSVPs
+    // 7. RSVPs
     match /rsvps/{rsvpId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.organizerId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;

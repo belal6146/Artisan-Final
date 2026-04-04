@@ -14,6 +14,7 @@ import {
 
 import { useAuth } from "@/contexts/AuthContext";
 import { recordTransaction } from "@/backend/actions/transaction";
+import { logger } from "@/backend/lib/logger";
 
 // Initialize Stripe outside of component
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
@@ -36,6 +37,7 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
         if (!stripe || !elements) return;
 
         setIsLoading(true);
+        logger.info('COMMERCE_CHECKOUT_START', { userId: user?.uid, sessionId, source: 'frontend' });
 
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
@@ -47,6 +49,7 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
         });
 
         if (error) {
+            logger.error('COMMERCE_CHECKOUT_FAILURE', { userId: user?.uid, sessionId, error: error.message, source: 'frontend' });
             if (error.type === "card_error" || error.type === "validation_error") {
                 setMessage(error.message || "Something went wrong.");
             } else {
@@ -55,6 +58,7 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
             setIsLoading(false);
         } else if (paymentIntent && paymentIntent.status === "succeeded") {
             setIsSuccess(true);
+            logger.info('COMMERCE_CHECKOUT_SUCCESS', { userId: user?.uid, sessionId, paymentIntentId: paymentIntent.id, source: 'frontend' });
             
             // Persist Transaction via Server Action
             if (user) {
@@ -67,8 +71,8 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
                         amount: paymentIntent.amount / 100,
                         currency: paymentIntent.currency.toUpperCase()
                     });
-                } catch (err) {
-                    console.error("Failed to record transaction", err);
+                } catch (err: any) {
+                    logger.error('SYSTEM_ERROR', { userId: user.uid, message: "Checkout tx record failed", error: err.message, source: 'frontend' });
                 }
             }
 

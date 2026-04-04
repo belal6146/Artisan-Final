@@ -366,13 +366,13 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const updateLanguage = (lang: Language) => {
         setLanguage(lang);
         localStorage.setItem("artisan_lang", lang);
-        logger.info('USER_RECORD_UPDATED', { language: lang, source: 'frontend' });
+        logger.info('PROFILE_UPDATE_SUCCESS', { language: lang, source: 'frontend' });
     };
 
     const updateCurrency = (cur: Currency) => {
         setCurrency(cur);
         localStorage.setItem("artisan_cur", cur);
-        logger.info('USER_RECORD_UPDATED', { currency: cur, source: 'frontend' });
+        logger.info('PROFILE_UPDATE_SUCCESS', { currency: cur, source: 'frontend' });
     };
 
     const convertPrice = (amount: number, fromCurrency: string = "EUR") => {

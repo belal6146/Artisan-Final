@@ -3,17 +3,20 @@
 import { seedDatabase } from "@/backend/lib/seed";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/backend/lib/logger";
 
 export default function SeedPage() {
     const [status, setStatus] = useState("Idle");
 
     const handleSeed = async () => {
         setStatus("Seeding...");
+        logger.info('SYSTEM_START', { action: 'admin_seed', source: 'frontend' });
         try {
             await seedDatabase();
             setStatus("Success! DB Seeded.");
-        } catch (e) {
-            console.error(e);
+            logger.info('SYSTEM_SUCCESS', { action: 'admin_seed', source: 'frontend' });
+        } catch (e: any) {
+            logger.error('SYSTEM_ERROR', { action: 'admin_seed', error: e.message, source: 'frontend' });
             setStatus("Error.");
         }
     };

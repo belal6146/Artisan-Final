@@ -13,6 +13,8 @@ interface ImageUploadProps {
     onImageUploaded: (url: string) => void;
 }
 
+import { logger } from "@/backend/lib/logger";
+
 export function ImageUpload({ currentImageUrl, onImageUploaded }: ImageUploadProps) {
     const { user } = useAuth();
     const [preview, setPreview] = useState<string | null>(currentImageUrl || null);
@@ -36,8 +38,9 @@ export function ImageUpload({ currentImageUrl, onImageUploaded }: ImageUploadPro
             const downloadUrl = await getDownloadURL(storageRef);
 
             onImageUploaded(downloadUrl);
-        } catch (error) {
-            console.error("Upload failed", error);
+            logger.info('PROFILE_UPDATE_SUCCESS', { userId: user.uid, message: "Avatar uploaded", source: 'frontend' });
+        } catch (error: any) {
+            logger.error('SYSTEM_ERROR', { userId: user.uid, message: "Avatar upload failed", error: error.message, source: 'frontend' });
             // Revert preview on error
             setPreview(currentImageUrl || null);
         } finally {

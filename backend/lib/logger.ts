@@ -9,17 +9,28 @@ export type EventCategory =
     | 'AUTH' | 'USER' | 'ARTWORK' | 'EVENT' | 'COLLAB' | 'SECURITY' | 'SYSTEM' | 'COMMERCE';
 
 export type EventName = 
-    | 'AUTH_LOGIN_STARTED' | 'AUTH_LOGIN_SUCCESS' | 'AUTH_LOGIN_FAILURE' | 'AUTH_LOGOUT' | 'AUTH_SESSION_RESTORED'
-    | 'USER_RECORD_CREATED' | 'USER_RECORD_UPDATED' | 'USER_PROFILE_UPDATED' | 'ARTIST_PROFILE_CREATED' | 'ARTIST_PROFILE_UPDATED'
-    | 'ARTWORK_UPLOAD_STARTED' | 'ARTWORK_UPLOAD_SUCCESS' | 'ARTWORK_UPLOAD_FAILURE' | 'ARTWORK_VISIBILITY_CHANGED'
+    | 'AUTH_LOGIN_START' | 'AUTH_LOGIN_SUCCESS' | 'AUTH_LOGIN_FAILURE' | 'AUTH_LOGOUT' | 'AUTH_SESSION_RESTORED'
+    | 'USER_CREATE_START' | 'USER_CREATE_SUCCESS' | 'USER_CREATE_FAILURE'
+    | 'USER_UPDATE_START' | 'USER_UPDATE_SUCCESS' | 'USER_UPDATE_FAILURE'
+    | 'PROFILE_UPDATE_START' | 'PROFILE_UPDATE_SUCCESS' | 'PROFILE_UPDATE_FAILURE'
+    | 'ARTWORK_CREATE_START' | 'ARTWORK_CREATE_SUCCESS' | 'ARTWORK_CREATE_FAILURE'
+    | 'ARTWORK_UPDATE_START' | 'ARTWORK_UPDATE_SUCCESS' | 'ARTWORK_UPDATE_FAILURE'
+    | 'ARTWORK_DELETE_START' | 'ARTWORK_DELETE_SUCCESS' | 'ARTWORK_DELETE_FAILURE'
     | 'ARTWORK_FETCH_SUCCESS' | 'ARTWORK_FETCH_FAILED'
-    | 'EVENT_CREATED' | 'EVENT_UPDATED' | 'EVENT_CANCELED' | 'EVENT_FETCH_SUCCESS' | 'EVENT_FETCH_FAILED'
-    | 'EVENT_RSVP_CREATED' | 'EVENT_RSVP_CANCELED' | 'EVENT_RSVP_FAILURE'
-    | 'COLLAB_POST_CREATED' | 'COLLAB_POST_UPDATED' | 'COLLAB_POST_FLAGGED' | 'COLLAB_INTEREST_SUBMITTED'
-    | 'JOURNAL_ENTRY_CREATED' | 'JOURNAL_ENTRY_UPDATED' | 'JOURNAL_FETCH_SUCCESS' | 'JOURNAL_FETCH_FAILED'
-    | 'PERMISSION_DENIED' | 'RATE_LIMIT_TRIGGERED' | 'RULE_VIOLATION_ATTEMPT' | 'CONTENT_FLAGGED'
-    | 'COMMERCE_CHECKOUT_STARTED' | 'COMMERCE_CHECKOUT_SUCCESS' | 'COMMERCE_ACQUISITION_SUCCESS' | 'COMMERCE_PAYMENT_FAILED'
+    | 'EVENT_CREATE_START' | 'EVENT_CREATE_SUCCESS' | 'EVENT_CREATE_FAILURE'
+    | 'EVENT_UPDATE_START' | 'EVENT_UPDATE_SUCCESS' | 'EVENT_UPDATE_FAILURE'
+    | 'EVENT_FETCH_SUCCESS' | 'EVENT_FETCH_FAILED'
+    | 'RSVP_CREATE_START' | 'RSVP_CREATE_SUCCESS' | 'RSVP_CREATE_FAILURE'
+    | 'COLLAB_CREATE_START' | 'COLLAB_CREATE_SUCCESS' | 'COLLAB_CREATE_FAILURE'
+    | 'COLLAB_FETCH_SUCCESS' | 'COLLAB_FETCH_FAILED'
+    | 'COLLAB_INTEREST_START' | 'COLLAB_INTEREST_SUCCESS' | 'COLLAB_INTEREST_FAILURE'
+    | 'JOURNAL_CREATE_START' | 'JOURNAL_CREATE_SUCCESS' | 'JOURNAL_CREATE_FAILURE'
+    | 'JOURNAL_FETCH_SUCCESS' | 'JOURNAL_FETCH_FAILED'
+    | 'PAYMENT_PROCESS_START' | 'PAYMENT_PROCESS_SUCCESS' | 'PAYMENT_PROCESS_FAILURE'
+    | 'PERMISSION_DENIED' | 'VALIDATION_FAILURE' | 'SECURITY_VIOLATION'
+    | 'COMMERCE_CHECKOUT_START' | 'COMMERCE_CHECKOUT_SUCCESS' | 'COMMERCE_CHECKOUT_FAILURE' | 'COMMERCE_PAYMENT_FAILED'
     | 'SYSTEM_EMAIL_SENT' | 'SYSTEM_EMAIL_FAILED'
+    | 'SYSTEM_START' | 'SYSTEM_SUCCESS' | 'SYSTEM_FAILURE'
     | 'SYSTEM_ERROR' | 'UNEXPECTED_CONDITION';
 
 export interface LogContext {
@@ -37,36 +48,25 @@ class Logger {
     private log(level: LogLevel, event: EventName, context: LogContext) {
         const timestamp = new Date().toISOString();
         
-        // Robust Error Serialization: Ensure everything is machine-readable
-        const processedContext = { ...context };
-        Object.keys(processedContext).forEach(key => {
-            const val = processedContext[key];
-            if (val && typeof val === 'object') {
-                // Handle Error-like objects including Firestore/Custom errors
-                if ('message' in val || 'stack' in val || val instanceof Error) {
-                    const errorObj = val as any;
-                    processedContext[key] = {
-                        message: errorObj.message || 'Unknown Error',
-                        stack: errorObj.stack || 'No Stack Trace',
-                        name: errorObj.name || (errorObj.code ? `Error[${errorObj.code}]` : 'InternalError'),
-                        code: errorObj.code || 'UNKNOWN'
-                    };
-                }
-            }
-        });
-
+        // Simple serialization without manual loop - let JSON handle standard objects
+        // and only explicitly format Error if present to avoid "clever" processing.
         const logEntry = {
             timestamp,
             level,
             event,
-            ...processedContext,
+            ...context,
+            error: context.error instanceof Error ? {
+                message: context.error.message,
+                name: context.error.name,
+                stack: context.error.stack
+            } : context.error
         };
 
         if (this.isDev) {
             const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[32m';
             console[level](
                 `${color}[${level.toUpperCase()}] ${event}\x1b[0m`,
-                JSON.stringify({ ...processedContext, timestamp }, null, 2)
+                JSON.stringify(logEntry, null, 2)
             );
         } else {
             console[level](JSON.stringify(logEntry));

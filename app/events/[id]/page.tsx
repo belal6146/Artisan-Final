@@ -9,6 +9,7 @@ import { Calendar, MapPin, Users, Loader2, Check, Edit2, ArrowLeft } from "lucid
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventById } from "@/backend/db/events";
 import { createRSVP } from "@/backend/actions/rsvp";
+import { logger } from "@/backend/lib/logger";
 import { PriceBreakdown } from "@/components/ui/price-breakdown";
 import { EcoTag } from "@/components/ui/eco-tag";
 import { checkUserRSVP } from "@/backend/db/rsvps";
@@ -39,8 +40,8 @@ export default function EventDetailPage() {
                     const rsvp = await checkUserRSVP(eventData.id, user.uid);
                     setHasRSVP(rsvp?.status === 'going');
                 }
-            } catch (e) {
-                console.error(e);
+            } catch (e: any) {
+                logger.error('SYSTEM_ERROR', { eventId: id, message: "Load event failed", error: e.message, source: 'frontend' });
                 setEvent(null);
             } finally {
                 setLoading(false);
@@ -76,6 +77,7 @@ export default function EventDetailPage() {
             }
 
             // Free Event Flow
+            logger.info('RSVP_CREATE_START', { eventId: event.id, userId: user.uid, source: 'frontend' });
             const result = await createRSVP({
                 eventId: event.id,
                 userId: user.uid,
@@ -83,6 +85,7 @@ export default function EventDetailPage() {
             });
 
             if (result.success) {
+                logger.info('RSVP_CREATE_SUCCESS', { eventId: event.id, userId: user.uid, source: 'frontend' });
                 setHasRSVP(true);
                 setSuccess(true);
                 // Update local event state
@@ -91,6 +94,7 @@ export default function EventDetailPage() {
                     currentAttendees: event.currentAttendees + 1
                 });
             } else {
+                logger.error('RSVP_CREATE_FAILURE', { eventId: event.id, userId: user.uid, error: result.error, source: 'frontend' });
                 setError(result.error || "Failed to register for event");
             }
         } catch (e: any) {

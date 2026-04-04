@@ -9,9 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 export const PaymentService = {
     async processPayment(amount: number, currency: string, sourceId: string) {
         try {
-            logger.info(`Processing payment`, { amount, currency, sourceId });
+            logger.info('PAYMENT_PROCESS_START', { amount, currency, sourceId, source: 'backend' });
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: Math.round(amount * 100), // convert to cents
+                amount: Math.round(amount * 100), 
                 currency: currency.toLowerCase(),
                 payment_method: sourceId,
                 confirm: true,
@@ -24,16 +24,15 @@ export const PaymentService = {
                 timestamp: new Date().toISOString()
             };
         } catch (error: any) {
-            logger.error("Stripe Charge Error:", { error: error.message });
+            logger.error('PAYMENT_PROCESS_FAILURE', { error: error.message, sourceId, source: 'backend' });
             return { success: false, error: error.message };
         }
     },
 
     async createSession(items: { id: string, title: string, price: number, currency: string }) {
         try {
-            logger.info(`Creating Stripe PaymentIntent`, { items });
+            logger.info('COMMERCE_CHECKOUT_START', { itemId: items.id, source: 'backend' });
             
-            // For real Stripe integration, we create a PaymentIntent and return its client_secret
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: Math.round(items.price * 100),
                 currency: items.currency.toLowerCase(),
@@ -49,7 +48,7 @@ export const PaymentService = {
                 clientSecret: paymentIntent.client_secret
             };
         } catch (error: any) {
-            logger.error("Stripe Session Error:", { error: error.message });
+            logger.error('COMMERCE_CHECKOUT_FAILURE', { error: error.message, itemId: items.id, source: 'backend' });
             throw error;
         }
     }

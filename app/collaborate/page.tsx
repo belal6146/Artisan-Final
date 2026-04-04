@@ -21,7 +21,7 @@ export default function CollaboratePage() {
             try {
                 const data = await getCollaborations();
                 setCollaborations(data);
-                logger.debug('COLLAB_POST_FLAGGED', { count: data.length, message: "Fetched collabs", source: 'frontend' });
+                logger.info('COLLAB_FETCH_SUCCESS', { count: data.length, source: 'frontend' });
             } catch (error: any) {
                 logger.error('SYSTEM_ERROR', { error: error.message, source: 'frontend' });
             } finally {
@@ -45,7 +45,7 @@ export default function CollaboratePage() {
                 userName: user.displayName || "A fellow Artisan",
                 message: "Interested in this collaboration opportunity."
             });
-            logger.info('COLLAB_INTEREST_SUBMITTED', { 
+            logger.info('COLLAB_INTEREST_SUCCESS', { 
                 collabId: collab.id, 
                 authorId: collab.authorId, 
                 applicantId: user.uid,
