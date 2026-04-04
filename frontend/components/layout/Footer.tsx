@@ -8,7 +8,7 @@ export function Footer() {
     const { language, currency, t } = useLocale();
     return (
         <footer className="w-full border-t border-border/10 py-16 bg-muted/5 font-sans">
-            <div className="container mx-auto px-6 sm:px-12 grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div className="container mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
                 {/* Brand Column */}
                 <div className="md:col-span-1 space-y-6">
                     <Link href="/" className="font-serif text-3xl font-medium tracking-tighter">
@@ -59,7 +59,7 @@ export function Footer() {
                 </div>
             </div>
 
-            <div className="container mx-auto px-6 sm:px-12 mt-16 pt-8 border-t border-border/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="container mx-auto mt-16 pt-8 border-t border-border/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <p className="text-[10px] font-medium tracking-widest text-muted-foreground/40 uppercase">
                     © {new Date().getFullYear()} Artisan Platform. Dedicated to Human Craft.
                 </p>

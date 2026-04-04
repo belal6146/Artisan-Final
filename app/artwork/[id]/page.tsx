@@ -28,8 +28,8 @@ export default function ArtworkDetailPage() {
                 if (!res.ok) throw new Error("Artwork not found");
                 const data = await res.json();
                 setArtwork(data);
-            } catch (e) {
-                console.error(e);
+            } catch (e: any) {
+                logger.error('ARTWORK_FETCH_FAILED', { id, error: e, source: 'frontend' });
             } finally {
                 setLoading(false);
             }
@@ -71,7 +71,7 @@ export default function ArtworkDetailPage() {
     );
 
     return (
-        <div className="container py-24 px-6 md:px-12 space-y-20 animate-in fade-in duration-1000">
+        <div className="container py-24 space-y-20 animate-in fade-in duration-1000">
             <Link href="/explore" className="text-[10px] font-bold tracking-[0.4em] uppercase text-muted-foreground/40 hover:text-primary transition-all inline-block mb-12">
                 ← Back to Gallery
             </Link>
@@ -83,7 +83,7 @@ export default function ArtworkDetailPage() {
                         src={artwork.imageUrl}
                         alt={artwork.title}
                         fill
-                        className="object-cover grayscale group-hover/image:grayscale-0 transition-all duration-1000 group-hover/image:scale-105"
+                        className="object-cover transition-all duration-1000 group-hover/image:scale-105"
                         priority
                         sizes="(max-width: 1024px) 100vw, 50vw"
                     />

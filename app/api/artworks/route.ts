@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/backend/config/firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { logger } from '@/backend/lib/logger';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -17,10 +18,12 @@ export async function GET(request: Request) {
 
         // 2. Get All Artworks
         const querySnapshot = await getDocs(collection(db, 'artworks'));
-        const artworks = querySnapshot.docs.map(doc => doc.data());
+        const artworks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        logger.info('ARTWORK_FETCH_SUCCESS', { count: artworks.length, source: 'backend' });
         return NextResponse.json(artworks);
 
-    } catch (e) {
+    } catch (error: any) {
+        logger.error('SYSTEM_ERROR', { error, action: 'GET_ARTWORKS_API', source: 'backend' });
         return NextResponse.json({ error: 'Failed to fetch artworks' }, { status: 500 });
     }
 }

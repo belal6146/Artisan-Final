@@ -28,21 +28,21 @@ export async function createJournalEntry(userId: string, data: { title: string; 
         logger.info('JOURNAL_ENTRY_CREATED', { userId, entryId: docRef.id, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
-        logger.error('SYSTEM_ERROR', { error: error.message, userId, action: 'createJournalEntry', source: 'backend' });
+        logger.error('SYSTEM_ERROR', { error, userId, action: 'createJournalEntry', source: 'backend' });
         return { success: false, error: error.message };
     }
 }
 
 export async function getGlobalJournalEntries() {
     try {
-        const q = query(
-            collectionGroup(db, "journal_entries"),
-            orderBy("createdAt", "desc")
-        );
+        const q = query(collectionGroup(db, "journal_entries"));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as JournalEntry));
+        const entries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as JournalEntry));
+        
+        // Sort in code to avoid mandatory collectionGroup index requirement for MVP
+        return entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (error: any) {
-        logger.error('SYSTEM_ERROR', { error: error.message, action: 'getGlobalJournalEntries', source: 'backend' });
+        logger.error('SYSTEM_ERROR', { error, action: 'getGlobalJournalEntries', source: 'backend' });
         return [];
     }
 }
@@ -56,8 +56,19 @@ export async function getJournalEntries(userId: string) {
         const snap = await getDocs(q);
         return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as JournalEntry));
     } catch (error: any) {
-        logger.error('SYSTEM_ERROR', { error: error.message, userId, action: 'getJournalEntries', source: 'backend' });
+        logger.error('SYSTEM_ERROR', { error, userId, action: 'getJournalEntries', source: 'backend' });
         return [];
     }
 }
 
+export async function getJournalEntryById(id: string) {
+    try {
+        const snap = await getDocs(query(collectionGroup(db, 'journal_entries')));
+        const doc = snap.docs.find(d => d.id === id);
+        if (!doc) return null;
+        return { id: doc.id, ...doc.data() } as JournalEntry;
+    } catch (error: any) {
+        logger.error('SYSTEM_ERROR', { error, id, action: 'getJournalEntryById', source: 'backend' });
+        return null;
+    }
+}

@@ -25,7 +25,7 @@ export function Header() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/10 bg-background/60 backdrop-blur-xl">
-            <div className="container mx-auto flex h-20 items-center justify-between px-6 sm:px-12">
+            <div className="container mx-auto flex h-20 items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="font-serif text-3xl font-medium tracking-tighter hover:opacity-70 transition-opacity">
                     Artisan.

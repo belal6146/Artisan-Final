@@ -21,7 +21,7 @@ export async function getArtworks(maxResults: number = 20): Promise<Artwork[]> {
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { 
             message: "Failed fetching published artworks", 
-            error: error.message, 
+            error, 
             source: 'backend' 
         });
         return [];
@@ -39,7 +39,7 @@ export async function getArtworkById(id: string): Promise<Artwork | undefined> {
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { 
             message: `Failed to fetch individual artwork ${id}`, 
-            error: error.message, 
+            error, 
             source: 'backend' 
         });
         return undefined;
@@ -55,7 +55,7 @@ export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> 
         logger.error('SYSTEM_ERROR', { 
             message: "Failed fetching artist artworks", 
             artistId,
-            error: error.message, 
+            error, 
             source: 'backend' 
         });
         return [];

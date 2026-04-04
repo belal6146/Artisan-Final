@@ -16,10 +16,14 @@ export async function getEvents(maxResults: number = 20): Promise<Event[]> {
         const querySnapshot = await getDocs(q);
         const events = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
 
-        logger.info("Fetched published events", { count: events.length });
+        logger.info('EVENT_FETCH_SUCCESS', { count: events.length, source: 'backend' });
         return events;
     } catch (error: any) {
-        logger.error(`Error fetching events: ${error.message || error}`, { stack: error.stack });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Failed fetching published events", 
+            error, 
+            source: 'backend' 
+        });
         return [];
     }
 }
@@ -33,7 +37,12 @@ export async function getEventById(id: string): Promise<Event | undefined> {
         }
         return undefined;
     } catch (error: any) {
-        logger.error("Error fetching event by ID", { error: error.message, eventId: id });
+        logger.error('SYSTEM_ERROR', { 
+            message: `Failed to fetch individual event ${id}`, 
+            error, 
+            eventId: id,
+            source: 'backend' 
+        });
         return undefined;
     }
 }
@@ -48,10 +57,15 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
             .map(doc => ({ id: doc.id, ...doc.data() } as Event))
             .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
-        logger.info("Fetched events for organizer", { organizerId, count: events.length });
+        logger.info('EVENT_FETCH_SUCCESS', { organizerId, count: events.length, source: 'backend' });
         return events;
     } catch (error: any) {
-        logger.error("Error fetching organizer events", { error: error.message, organizerId });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Failed fetching organizer events", 
+            organizerId,
+            error, 
+            source: 'backend' 
+        });
         return [];
     }
 }

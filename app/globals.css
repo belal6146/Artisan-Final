@@ -155,20 +155,26 @@ body {
   transform: scale(1);
 }
 
-/* Custom Container for "State of the Art" Centering */
+/* Custom Container for "State of the Art" Centering - Expansive & Intentional */
 .container {
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  max-width: 1400px;
-  /* Wider for gallery, strictly centered */
+  max-width: 1760px; /* Expansive width for high-end cinematic scaling */
   padding-left: 2rem;
   padding-right: 2rem;
 }
 
 @media (min-width: 640px) {
   .container {
-    padding-left: 3rem;
-    padding-right: 3rem;
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 6rem;
+    padding-right: 6rem;
   }
 }

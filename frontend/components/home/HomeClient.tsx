@@ -16,7 +16,7 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
     return (
         <div className="flex flex-col min-h-screen relative font-sans">
             {/* Hero Section - The "Hook" */}
-            <section className="relative min-h-[90vh] flex flex-col items-center justify-center py-32 px-6 overflow-hidden">
+            <section className="relative min-h-[90vh] flex flex-col items-center justify-center py-32 overflow-hidden">
                 {/* Artistic Blur Backgrounds */}
                 <div className="absolute top-1/4 -left-20 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-60 pointer-events-none" />
                 <div className="absolute bottom-1/4 -right-20 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-60 pointer-events-none" />

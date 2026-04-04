@@ -31,7 +31,7 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                             alt={artwork.title || "Untitled Artwork"}
                             fill
                             priority={priority}
-                            className="object-cover grayscale hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
+                            className="object-cover grayscale group-hover:scale-105 transition-all duration-1000"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             onError={() => {
                                 setHasError(true);

@@ -10,7 +10,7 @@ export type EventCategory =
 
 export type EventName = 
     | 'AUTH_LOGIN_STARTED' | 'AUTH_LOGIN_SUCCESS' | 'AUTH_LOGIN_FAILURE' | 'AUTH_LOGOUT' | 'AUTH_SESSION_RESTORED'
-    | 'USER_RECORD_CREATED' | 'USER_RECORD_UPDATED' | 'ARTIST_PROFILE_CREATED' | 'ARTIST_PROFILE_UPDATED'
+    | 'USER_RECORD_CREATED' | 'USER_RECORD_UPDATED' | 'USER_PROFILE_UPDATED' | 'ARTIST_PROFILE_CREATED' | 'ARTIST_PROFILE_UPDATED'
     | 'ARTWORK_UPLOAD_STARTED' | 'ARTWORK_UPLOAD_SUCCESS' | 'ARTWORK_UPLOAD_FAILURE' | 'ARTWORK_VISIBILITY_CHANGED'
     | 'ARTWORK_FETCH_SUCCESS' | 'ARTWORK_FETCH_FAILED'
     | 'EVENT_CREATED' | 'EVENT_UPDATED' | 'EVENT_CANCELED' | 'EVENT_FETCH_SUCCESS' | 'EVENT_FETCH_FAILED'
@@ -18,7 +18,7 @@ export type EventName =
     | 'COLLAB_POST_CREATED' | 'COLLAB_POST_UPDATED' | 'COLLAB_POST_FLAGGED' | 'COLLAB_INTEREST_SUBMITTED'
     | 'JOURNAL_ENTRY_CREATED' | 'JOURNAL_ENTRY_UPDATED' | 'JOURNAL_FETCH_SUCCESS' | 'JOURNAL_FETCH_FAILED'
     | 'PERMISSION_DENIED' | 'RATE_LIMIT_TRIGGERED' | 'RULE_VIOLATION_ATTEMPT' | 'CONTENT_FLAGGED'
-    | 'COMMERCE_CHECKOUT_STARTED' | 'COMMERCE_CHECKOUT_SUCCESS' | 'COMMERCE_PAYMENT_FAILED'
+    | 'COMMERCE_CHECKOUT_STARTED' | 'COMMERCE_CHECKOUT_SUCCESS' | 'COMMERCE_ACQUISITION_SUCCESS' | 'COMMERCE_PAYMENT_FAILED'
     | 'SYSTEM_EMAIL_SENT' | 'SYSTEM_EMAIL_FAILED'
     | 'SYSTEM_ERROR' | 'UNEXPECTED_CONDITION';
 
@@ -36,23 +36,39 @@ class Logger {
 
     private log(level: LogLevel, event: EventName, context: LogContext) {
         const timestamp = new Date().toISOString();
+        
+        // Robust Error Serialization: Ensure everything is machine-readable
+        const processedContext = { ...context };
+        Object.keys(processedContext).forEach(key => {
+            const val = processedContext[key];
+            if (val && typeof val === 'object') {
+                // Handle Error-like objects including Firestore/Custom errors
+                if ('message' in val || 'stack' in val || val instanceof Error) {
+                    const errorObj = val as any;
+                    processedContext[key] = {
+                        message: errorObj.message || 'Unknown Error',
+                        stack: errorObj.stack || 'No Stack Trace',
+                        name: errorObj.name || (errorObj.code ? `Error[${errorObj.code}]` : 'InternalError'),
+                        code: errorObj.code || 'UNKNOWN'
+                    };
+                }
+            }
+        });
+
         const logEntry = {
             timestamp,
             level,
             event,
-            ...context,
+            ...processedContext,
         };
 
-        // PRODUCTION: Use structured JSON for log aggregators (Datadog/Sentry/CloudWatch)
-        // DEVELOPMENT: Use formatted console output for developer clarity
         if (this.isDev) {
             const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[32m';
             console[level](
                 `${color}[${level.toUpperCase()}] ${event}\x1b[0m`,
-                { ...context, timestamp }
+                JSON.stringify({ ...processedContext, timestamp }, null, 2)
             );
         } else {
-            // World-class logs are JSON-based for machine parsing
             console[level](JSON.stringify(logEntry));
         }
     }

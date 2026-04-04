@@ -59,7 +59,12 @@ service cloud.firestore {
       }
     }
 
-    // 5. Global Notifications Collection (Used for real-time alerting)
+    // 5. Global Collection Group rules
+    match /{path=**}/journal_entries/{entryId} {
+       allow read: if true;
+    }
+
+    // 6. Global Notifications Collection (Used for real-time alerting)
     match /notifications/{notifId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated(); // Allowed for system-wide triggering

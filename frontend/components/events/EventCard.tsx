@@ -30,7 +30,7 @@ export function EventCard({ event, className }: EventCardProps) {
                         alt={event.title}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000 ease-out"
+                        className="object-cover grayscale group-hover:scale-105 transition-all duration-1000 ease-out"
                     />
                 ) : (
                     <div className="flex items-center justify-center h-full bg-secondary/30">

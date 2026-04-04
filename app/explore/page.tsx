@@ -47,7 +47,7 @@ export default function ExplorePage() {
     });
 
     return (
-        <div className="container py-48 px-6 md:px-12 space-y-24 animate-in fade-in slide-in-from-bottom-12 duration-1200">
+        <div className="container py-48 space-y-24 animate-in fade-in slide-in-from-bottom-12 duration-1200">
             <div className="flex flex-col md:flex-row items-baseline justify-between gap-12 border-l-2 border-primary/20 pl-16 pb-12">
                 <div className="space-y-8 max-w-3xl">
                     <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter leading-none">

@@ -40,10 +40,15 @@ export async function syncUserToFirestore(user: FirebaseUser): Promise<void> {
                 createdAt: serverTimestamp(), // Use server timestamp for consistency
             });
 
-            logger.info("New user record created in Firestore", { uid: user.uid, role: newUser.role });
+            logger.info('USER_PROFILE_UPDATED', { uid: user.uid, role: newUser.role, isNew: true, source: 'backend' });
         }
     } catch (error) {
-        logger.error("Failed to sync user to Firestore", { error });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Failed to sync user to Firestore", 
+            uid: user.uid,
+            error,
+            source: 'backend'
+        });
         // We don't block the UI here, but this is a critical failure for "Trust" features.
     }
 }
@@ -66,7 +71,11 @@ export async function getAllArtists(): Promise<AppUser[]> {
 
         return artists;
     } catch (error: any) {
-        logger.error("Error fetching artists", { error: error.message });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Error fetching artists", 
+            error,
+            source: 'backend'
+        });
         return [];
     }
 }
@@ -81,7 +90,12 @@ export async function getUserById(uid: string): Promise<AppUser | null> {
         }
         return null;
     } catch (error: any) {
-        logger.error("Error fetching user by ID", { uid, error: error.message });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Error fetching user by ID", 
+            uid, 
+            error,
+            source: 'backend'
+        });
         return null;
     }
 }

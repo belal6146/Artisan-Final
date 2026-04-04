@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PaymentService } from '@/backend/services/payment';
 import { db } from '@/backend/config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { logger } from '@/backend/lib/logger';
 
 export async function POST(request: Request) {
     try {
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
             const docSnap = await getDoc(docRef);
 
             if (!docSnap.exists()) {
+                logger.warn('RULE_VIOLATION_ATTEMPT', { itemId, type, message: 'Attempted checkout of non-existent item', source: 'backend' });
                 return NextResponse.json({ error: 'Item not found in database' }, { status: 404 });
             }
 
@@ -42,13 +44,15 @@ export async function POST(request: Request) {
             currency: itemCurrency
         });
 
+        logger.info('COMMERCE_CHECKOUT_STARTED', { itemId, type, sessionId, source: 'backend' });
+
         // 3. Return Checkout URL with clientSecret for the frontend
         return NextResponse.json({
             checkoutUrl: `/checkout/${sessionId}?type=${type}&itemId=${itemId}&clientSecret=${clientSecret}&title=${encodeURIComponent(itemTitle)}&imageUrl=${encodeURIComponent(imageUrl)}`
         });
 
-    } catch (error) {
-        console.error("Checkout Error:", error);
+    } catch (error: any) {
+        logger.error('COMMERCE_PAYMENT_FAILED', { error, action: 'CREATE_CHECKOUT_SESSION', source: 'backend' });
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
