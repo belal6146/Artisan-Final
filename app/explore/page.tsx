@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getArtworks } from "@/backend/db/artworks"; // Real DB
+import { getArtworks } from "@/backend/actions/artwork"; // Real DB
 import { Artwork } from "@/types/schema";
 import { ArtworkCard } from "@/components/art/ArtworkCard";
 import { FilterBar } from "@/components/art/FilterBar";
@@ -88,8 +88,14 @@ export default function ExplorePage() {
                     ))}
 
                     {filteredArtworks.length === 0 && (
-                        <div className="col-span-full py-20 text-center text-muted-foreground">
-                            No artworks found. <span className="opacity-50">(Did you seed the database?)</span>
+                        <div className="col-span-full py-20 text-center space-y-4">
+                            <p className="font-serif text-2xl italic text-muted-foreground/50">No works match this filter.</p>
+                            <button
+                                onClick={() => { setActiveFilter('all'); setSearchTerm(''); }}
+                                className="text-[10px] font-bold tracking-[0.4em] uppercase text-primary/40 hover:text-primary transition-colors"
+                            >
+                                Clear filters
+                            </button>
                         </div>
                     )}
                 </div>

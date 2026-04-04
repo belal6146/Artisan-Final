@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateEvent } from "@/backend/actions/event";
-import { getEventById } from "@/backend/db/events";
+import { getEventById } from "@/backend/actions/event";
 import { logger } from "@/backend/lib/logger";
 import { EventType } from "@/types/schema";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";

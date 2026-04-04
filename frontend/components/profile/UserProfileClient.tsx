@@ -10,7 +10,7 @@ import { User } from "@/types";
 import { ArtworkCard } from "@/components/art/ArtworkCard";
 import { cn } from "@/frontend/lib/utils";
 import { Settings, Edit2, History, Grid, Loader2, Calendar, Heart, BookOpen, Check, ArrowRight, Users } from "lucide-react";
-import { getEventsByOrganizer } from "@/backend/db/events";
+import { getEventsByOrganizer } from "@/backend/actions/event";
 import { collection, query, getDocs } from "firebase/firestore"; // Still needed for reading subcollection (Client Fetch)
 import { db } from "@/backend/config/firebase";
 import { ImageUpload } from "@/components/ui/image-upload";
@@ -51,18 +51,18 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
             logger.debug('ARTWORK_FETCH_SUCCESS', { message: "Refreshing profile", userId: targetUid, source: 'frontend' });
 
             // 1. Fetch Artworks
-            const { getArtworksByArtist } = await import("@/backend/db/artworks");
+            const { getArtworksByArtist } = await import("@/backend/actions/artwork");
             const freshArtworks = await getArtworksByArtist(targetUid);
             setUserArtworks(freshArtworks);
 
             // 2. Fetch Hosted Events
-            const { getEventsByOrganizer } = await import("@/backend/db/events");
+            const { getEventsByOrganizer } = await import("@/backend/actions/event");
             const hosted = await getEventsByOrganizer(targetUid);
             setUserEvents(hosted);
 
             // 3. Fetch Registered/Attending Events
-            const { getRSVPsByUser } = await import("@/backend/db/rsvps");
-            const { getEventById } = await import("@/backend/db/events");
+            const { getRSVPsByUser } = await import("@/backend/actions/rsvp");
+            const { getEventById } = await import("@/backend/actions/event");
             const rsvps = await getRSVPsByUser(user.uid);
             const attending = await Promise.all(
                 rsvps.map(r => getEventById(r.eventId))
@@ -144,7 +144,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                 router.push(checkoutUrl);
             }
         } catch (e: any) {
-            logger.error('COMMERCE_PAYMENT_FAILED', { userId: user.uid, error: e.message, source: 'frontend' });
+            logger.error('PAYMENT_FAILURE', { userId: user.uid, error: e.message, source: 'frontend' });
             setSupporting(false);
         }
     };
@@ -181,7 +181,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         const result = await updateUserProfile(user.uid, { bio, location, avatarUrl });
 
         if (result.success) {
-            logger.info('PROFILE_UPDATE_SUCCESS', { userId: user.uid, source: 'frontend' });
+            logger.info('USER_UPDATE_SUCCESS', { userId: user.uid, source: 'frontend' });
             setStatus('success');
             setTimeout(() => {
                 setIsEditing(false);

@@ -7,12 +7,11 @@ import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Users, Loader2, Check, Edit2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getEventById } from "@/backend/db/events";
-import { createRSVP } from "@/backend/actions/rsvp";
+import { getEventById } from "@/backend/actions/event";
+import { createRSVP, checkUserRSVP } from "@/backend/actions/rsvp";
 import { logger } from "@/backend/lib/logger";
 import { PriceBreakdown } from "@/components/ui/price-breakdown";
 import { EcoTag } from "@/components/ui/eco-tag";
-import { checkUserRSVP } from "@/backend/db/rsvps";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
 import { Event } from "@/types/schema";
 

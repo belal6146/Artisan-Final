@@ -11,7 +11,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
     useEffect(() => {
         if (!loading && !user) {
-            logger.warn("Unauthenticated access attempt blocked");
+            logger.warn('PERMISSION_DENIED', { message: "Unauthenticated access attempt blocked", source: 'frontend' });
             router.push("/auth");
         }
     }, [user, loading, router]);

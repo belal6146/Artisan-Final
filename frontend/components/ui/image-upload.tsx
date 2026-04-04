@@ -38,7 +38,7 @@ export function ImageUpload({ currentImageUrl, onImageUploaded }: ImageUploadPro
             const downloadUrl = await getDownloadURL(storageRef);
 
             onImageUploaded(downloadUrl);
-            logger.info('PROFILE_UPDATE_SUCCESS', { userId: user.uid, message: "Avatar uploaded", source: 'frontend' });
+            logger.info('USER_UPDATE_SUCCESS', { userId: user.uid, message: "Avatar uploaded", source: 'frontend' });
         } catch (error: any) {
             logger.error('SYSTEM_ERROR', { userId: user.uid, message: "Avatar upload failed", error: error.message, source: 'frontend' });
             // Revert preview on error

@@ -1,5 +1,5 @@
-import { getUserById } from "@/backend/db/users";
-import { getArtworksByArtist } from "@/backend/db/artworks";
+import { getUserById } from "@/backend/actions/profile";
+import { getArtworksByArtist } from "@/backend/actions/artwork";
 import { UserProfileClient } from "@/frontend/components/profile/UserProfileClient";
 import { notFound } from "next/navigation";
 import { DetailedArtistProfile } from "@/types/schema";

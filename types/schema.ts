@@ -4,9 +4,9 @@ export interface Artwork {
     id: string;
     title: string;
     artistId: string;
-    artistName: string; // Denormalized for calm loading
-    imageUrl?: string; // Legacy support
-    imageUrls?: string[]; // New support for multiple images
+    artistName: string;
+    imageUrl?: string;
+    imageUrls?: string[];
     primaryImageIndex?: number;
     medium: ArtworkMedium;
     location: string;
@@ -17,14 +17,21 @@ export interface Artwork {
     createdAt: string;
     description?: string;
     status: 'available' | 'collection';
-    // Ethical Commerce & Transparency
+    // Provenance & Process
+    origin?: string;          // Cultural / geographic context of the work
+    process?: string;         // How it was made — specific, not vague
+    materials?: string[];     // What was used and where sourced
+    timeSpent?: string;       // Honest time: "22 hours over 4 days"
+    artisanStory?: string;    // The maker's specific words about this piece
+    impactMetrics?: string;   // Who benefits — real, not marketing
+    aspirations?: string;     // What the artist is working toward
+    // Ethical Commerce
     priceBreakdown?: {
-        artisan: number;  // Amount going to the artisan
-        platform: number; // Amount going to the platform
-        materials: number; // Cost of materials
+        artisan: number;
+        platform: number;
+        materials: number;
     };
-    ecoTags?: string[]; // e.g., "Biodegradable", "Upcycled", "Organic"
-    materials?: string[]; // Detailed list of materials used
+    ecoTags?: string[];
 }
 
 export interface DetailedArtistProfile {
@@ -34,9 +41,13 @@ export interface DetailedArtistProfile {
     location: string;
     mediums: ArtworkMedium[];
     verificationStatus: 'verified' | 'unverified' | 'pending';
-    avatarUrl?: string; // Optional override handling
+    avatarUrl?: string;
     website?: string;
     instagram?: string;
+    // Craft depth
+    yearsOfPractice?: number;  // How long they have been working
+    craftStatement?: string;   // Their specific words about their practice — not a bio
+    influences?: string;       // What has shaped the work
 }
 
 export type EventType = 'Workshop' | 'Class' | 'Gathering' | 'Exhibition';

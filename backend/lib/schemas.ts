@@ -15,7 +15,7 @@ export const updateProfileSchema = z.object({
 // --- Artwork ---
 export const createArtworkSchema = z.object({
     title: z.string().min(1).max(100),
-    description: z.string().max(2000),
+    description: z.string().max(2000).optional(),
     price: z.number().min(0),
     imageUrl: z.string().url(),
     imageUrls: z.array(z.string().url()).optional(),
@@ -24,6 +24,14 @@ export const createArtworkSchema = z.object({
     artistName: z.string().min(1),
     isForSale: z.boolean().default(true),
     currency: currencySchema.default("GBP"),
+    // Provenance & Process — captured at submission, displayed on artwork page
+    origin: z.string().max(300).optional(),
+    process: z.string().max(1000).optional(),
+    materials: z.array(z.string()).optional(),
+    timeSpent: z.string().max(100).optional(),
+    artisanStory: z.string().max(2000).optional(),
+    impactMetrics: z.string().max(500).optional(),
+    aspirations: z.string().max(500).optional(),
 });
 
 export const updateArtworkSchema = createArtworkSchema.partial().omit({ artistId: true });

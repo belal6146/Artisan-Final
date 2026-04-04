@@ -40,7 +40,7 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
 
         try {
             for (const file of files) {
-                logger.debug('ARTWORK_UPLOAD_STARTED', { fileName: file.name, source: 'frontend' });
+                logger.debug('ARTWORK_UPDATE_START', { fileName: file.name, source: 'frontend' });
                 // Determine file path: users/{uid}/artworks/{timestamp}_{random}_{filename}
                 const timestamp = Date.now();
                 const random = Math.random().toString(36).substring(2, 8);
@@ -49,12 +49,12 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
                 await uploadBytes(storageRef, file);
                 const downloadUrl = await getDownloadURL(storageRef);
                 newUrls.push(downloadUrl);
-                logger.info('ARTWORK_UPLOAD_SUCCESS', { fileName: file.name, source: 'frontend' });
+                logger.info('ARTWORK_UPDATE_SUCCESS', { fileName: file.name, source: 'frontend' });
             }
 
             onImagesChange([...imageUrls, ...newUrls]);
         } catch (error: any) {
-            logger.error('ARTWORK_UPLOAD_FAILURE', { error: error.message, source: 'frontend' });
+            logger.error('ARTWORK_UPDATE_FAILURE', { error: error.message, source: 'frontend' });
         } finally {
             setUploading(false);
             // Reset input

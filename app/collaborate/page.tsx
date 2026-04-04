@@ -63,15 +63,15 @@ export default function CollaboratePage() {
             <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-12 border-l-2 border-primary/10 pl-8 pb-4">
                 <div className="space-y-6 max-w-2xl">
                     <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter">
-                        Opportunities
+                        Calls for collaboration
                     </h1>
                     <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
-                        Discover collaborations, mentorships, and collective building. 
-                        Find your next project partner or share your expertise.
+                        Artists and makers seeking collaboration, mentorship, or shared work.
+                        Each listing is posted by a real person with a specific need.
                     </p>
                 </div>
                 <Button size="lg" className="h-16 px-12 rounded-none bg-primary text-[11px] font-bold tracking-[0.2em] uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all" asChild>
-                    <Link href="/collaborate/create">POST OPPORTUNITY</Link>
+                    <Link href="/collaborate/create">POST A CALL</Link>
                 </Button>
             </div>
 
@@ -83,10 +83,10 @@ export default function CollaboratePage() {
             ) : collaborations.length === 0 ? (
                 <div className="text-center py-40 border border-dashed border-border/20">
                     <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-6 opacity-20" />
-                    <h3 className="font-serif text-2xl italic text-muted-foreground">The collective calls are currently silent.</h3>
-                    <p className="text-muted-foreground mb-8">Be the first to post a collaboration request.</p>
+                    <h3 className="font-serif text-2xl italic text-muted-foreground">No open calls at this time.</h3>
+                    <p className="text-sm text-muted-foreground/50 mt-2 mb-8 font-light">Be the first to post a call for collaboration.</p>
                     <Link href="/collaborate/create">
-                        <Button variant="outline" className="h-14 px-10 rounded-none text-[11px] font-bold tracking-[0.3em] uppercase">Initialise Call</Button>
+                        <Button variant="outline" className="h-14 px-10 rounded-none text-[11px] font-bold tracking-[0.3em] uppercase">Post a call</Button>
                     </Link>
                 </div>
             ) : (
@@ -129,8 +129,8 @@ export default function CollaboratePage() {
                                                 {collab.compensation.type === 'Money'
                                                     ? `${collab.compensation.currency} ${collab.compensation.amount}`
                                                     : collab.compensation.type === 'Exchange'
-                                                        ? 'Skill Exchange'
-                                                        : 'Unpaid'}
+                                                        ? 'Skill exchange'
+                                                        : 'Unpaid / pro bono'}
                                             </span>
                                         </div>
                                     </div>
@@ -148,7 +148,7 @@ export default function CollaboratePage() {
                                             </div>
                                             <div>
                                                 <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">{collab.authorName}</p>
-                                                <p className="text-[9px] font-bold tracking-widest text-primary/30 uppercase">Leader</p>
+                                                <p className="text-[9px] font-bold tracking-widest text-primary/30 uppercase">Initiator</p>
                                             </div>
                                         </div>
                                         

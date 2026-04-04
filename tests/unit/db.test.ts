@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getArtworks, getArtworkById } from '@/backend/db/artworks';
+import { getArtworks, getArtworkById } from '@/backend/actions/artwork';
 import { recordTransaction } from '@/backend/actions/transaction';
 import * as firestore from 'firebase/firestore';
 

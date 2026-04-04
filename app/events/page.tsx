@@ -2,72 +2,57 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getEvents } from "@/backend/db/events";
-import { Event } from "@/types/schema";
+import { getEvents } from "@/backend/actions/event";
+import { Event as EventSchema } from "@/types/schema";
 import { EventCard } from "@/components/events/EventCard";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
 export default function EventsPage() {
-    const [events, setEvents] = useState<Event[]>([]);
+    const [events, setEvents] = useState<EventSchema[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function load() {
-            try {
-                const data = await getEvents();
-                setEvents(data);
-            } finally {
-                setLoading(false);
-            }
+            const data = await getEvents();
+            setEvents(data);
+            setLoading(false);
         }
         load();
     }, []);
 
+    if (loading) return (
+        <div className="min-h-screen flex items-center justify-center">
+            <div className="uppercase tracking-[0.4em] text-[10px] font-bold opacity-30 animate-pulse">
+                Sychronizing Gatherings...
+            </div>
+        </div>
+    );
+
     return (
-        <div className="container py-48 space-y-24 animate-in fade-in slide-in-from-bottom-12 duration-1200">
-            <div className="flex flex-col md:flex-row items-baseline justify-between gap-12 border-l-2 border-primary/20 pl-16 pb-12">
-                <div className="space-y-8 max-w-3xl">
-                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter leading-none text-foreground">
-                        Gatherings
-                    </h1>
-                    <p className="text-2xl md:text-3xl text-muted-foreground font-light italic leading-relaxed opacity-60">
-                        Intimate workshops, critique sessions, and community walks. 
-                        Safe spaces for the curation of craft.
-                    </p>
+        <div className="container py-24 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 border-l-2 border-primary/20 pl-8">
+                <div className="space-y-4">
+                    <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tighter leading-none">Gatherings</h1>
+                    <p className="text-xl text-muted-foreground font-light italic leading-relaxed">Artisan curated events, workshops, and exhibitions.</p>
                 </div>
-                <Button size="lg" className="px-16" asChild>
+                <Button asChild className="shadow-2xl h-14 px-8 tracking-widest text-[10px] uppercase font-bold">
                     <Link href="/events/create">
-                        <Plus className="mr-2 h-4 w-4" /> HOST GATHERING
+                        <Plus className="h-4 w-4 mr-2" />
+                        BROADCAST GATHERING
                     </Link>
                 </Button>
             </div>
 
-            {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-96 bg-secondary/10 border border-border/10 animate-pulse" />
-                    ))}
-                </div>
-            ) : events.length === 0 ? (
-                <div className="py-64 text-center border-t border-border/10 flex flex-col items-center justify-center space-y-12">
-                    <div className="w-24 h-24 bg-secondary/20 flex items-center justify-center">
-                        <Plus className="h-10 w-10 text-primary/40" />
-                    </div>
-                    <div className="space-y-6">
-                        <h3 className="font-serif text-5xl md:text-6xl tracking-tighter italic text-muted-foreground opacity-60 leading-none">The gatherings are a clean slate.</h3>
-                        <p className="text-xl text-muted-foreground max-w-xl mx-auto italic font-light opacity-40">
-                            “Be the first to host a workshop or gathering for the community. Shape the legacy of craft in your region.”
-                        </p>
-                    </div>
-                    <Button size="lg" className="px-20" asChild>
-                        <Link href="/events/create">
-                            Host the First Event
-                        </Link>
-                    </Button>
+            {events.length === 0 ? (
+                <div className="py-32 text-center border border-dashed border-border/10 flex flex-col items-center justify-center space-y-8">
+                    <p className="font-serif text-3xl md:text-4xl tracking-tighter italic text-muted-foreground opacity-60">The gathering hall is currently quiet.</p>
+                    <Link href="/events/create" className="text-primary underline tracking-widest uppercase text-[10px] font-bold hover:opacity-70 transition-opacity">
+                        Initiate first broadcast
+                    </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                     {events.map((event) => (
                         <EventCard key={event.id} event={event} />
                     ))}

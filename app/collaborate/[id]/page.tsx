@@ -53,7 +53,8 @@ export default function CollaborationDetailPage() {
                     setApplications(apps);
                 }
                 
-                logger.info('COLLAB_POST_FLAGGED', { collabId: id, source: 'frontend', action: 'view_detail' });
+                // Using valid logger event or skipping read logging based on recent pass output
+                // logger.info('COLLAB_FETCH_SUCCESS', { collabId: id, source: 'frontend' });
             } catch (error: any) {
                 logger.error('SYSTEM_ERROR', { error: error.message, source: 'frontend' });
             } finally {
@@ -74,7 +75,7 @@ export default function CollaborationDetailPage() {
                 userName: user.displayName || "Anonymous Artisan",
                 message: message || "I am interested in this collaboration opportunity."
             });
-            logger.info('COLLAB_INTEREST_SUBMITTED', { 
+            logger.info('COLLAB_INTEREST_SUCCESS', { 
                 collabId: collab.id, 
                 authorId: collab.authorId, 
                 applicantId: user.uid,

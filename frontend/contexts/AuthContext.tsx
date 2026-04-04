@@ -11,7 +11,7 @@ import {
     createUserWithEmailAndPassword
 } from "firebase/auth";
 import { auth } from "@/backend/config/firebase";
-import { syncUserToFirestore } from "@/backend/db/users";
+import { syncUserToFirestore } from "@/backend/actions/profile";
 import { logger } from "@/backend/lib/logger";
 
 interface AuthContextType {

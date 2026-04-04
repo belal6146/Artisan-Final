@@ -81,11 +81,16 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // 7. RSVPs
-    match /rsvps/{rsvpId} {
+    // 7. RSVPs (Aliased correctly to event_rsvps)
+    match /event_rsvps/{rsvpId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.organizerId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // 8. Global Deny-by-Default
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

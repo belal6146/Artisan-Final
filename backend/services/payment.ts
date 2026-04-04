@@ -9,7 +9,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 export const PaymentService = {
     async processPayment(amount: number, currency: string, sourceId: string) {
         try {
-            logger.info('PAYMENT_PROCESS_START', { amount, currency, sourceId, source: 'backend' });
+            logger.info('PAYMENT_START', { amount, currency, sourceId, source: 'backend' });
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: Math.round(amount * 100), 
                 currency: currency.toLowerCase(),
@@ -24,7 +24,7 @@ export const PaymentService = {
                 timestamp: new Date().toISOString()
             };
         } catch (error: any) {
-            logger.error('PAYMENT_PROCESS_FAILURE', { error: error.message, sourceId, source: 'backend' });
+            logger.error('PAYMENT_FAILURE', { error: error.message, sourceId, source: 'backend' });
             return { success: false, error: error.message };
         }
     },

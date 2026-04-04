@@ -32,5 +32,5 @@ export async function seedDatabase() {
     // MOCK_EVENTS...
 
     await batch.commit();
-    logger.info('USER_RECORD_CREATED', { message: "Database seeded successfully (Minimal)", source: 'backend' });
+    logger.info('SYSTEM_SUCCESS', { message: "Database seeded successfully (Minimal)", source: 'backend' });
 }

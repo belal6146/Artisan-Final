@@ -1,4 +1,4 @@
-import { getAllArtists } from "@/backend/db/users";
+import { getAllArtists } from "@/backend/actions/profile";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";

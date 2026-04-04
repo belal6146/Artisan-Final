@@ -46,8 +46,8 @@ export function PriceBreakdown({ breakdown, currency }: PriceBreakdownProps) {
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
-                                <Tooltip
-                                    formatter={(value: number) => [`${currency} ${value}`, "Amount"]}
+                                <Tooltip 
+                                    formatter={(value: any) => [`${currency} ${value}`, "Amount"]}
                                     contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                                 />
                             </PieChart>
