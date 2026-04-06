@@ -2,39 +2,53 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { ArtworkCard } from "@/components/art/ArtworkCard";
-import { Select } from "@/components/ui/select-minimal";
+import { useAuth } from "@/frontend/contexts/AuthContext";
+import { Button } from "@/frontend/components/ui/button";
+import { Input } from "@/frontend/components/ui/input";
+import { Textarea } from "@/frontend/components/ui/textarea";
+import { ArtworkCard } from "@/frontend/components/art/ArtworkCard";
+import { Select } from "@/frontend/components/ui/select-minimal";
 import type { ArtworkMedium } from "@/types/schema";
 import { NOT_PROVIDED, textOrMissing } from "@/frontend/lib/artwork-display";
 import { cn } from "@/frontend/lib/utils";
-import { Edit2, History, Grid, Loader2, Calendar, Heart, Check, ArrowRight } from "lucide-react";
-import { collection, query, getDocs } from "firebase/firestore"; // Still needed for reading subcollection (Client Fetch)
+import { Edit2, Grid, Loader2, Calendar, Heart, Check, ArrowRight } from "lucide-react";
+import { collection, query, getDocs, where } from "firebase/firestore";
 import { db } from "@/backend/config/firebase";
-import { ImageUpload } from "@/components/ui/image-upload";
-import { ArtworkImageUpload } from "@/components/ui/artwork-image-upload";
+import { ImageUpload } from "@/frontend/components/ui/image-upload";
+import { ArtworkImageUpload } from "@/frontend/components/ui/artwork-image-upload";
 import { logger } from "@/backend/lib/logger";
 import { updateUserProfile } from "@/backend/actions/profile";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
-
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { createArtwork, getArtworksByArtist } from "@/backend/actions/artwork";
 
 const ARTWORK_MEDIA: ArtworkMedium[] = [
-    "Painting",
-    "Sculpture",
-    "Photography",
-    "Digital",
-    "Textile",
-    "Mixed Media",
-    "Other",
+    "Painting", "Sculpture", "Photography", "Digital", "Textile", "Mixed Media", "Other",
 ];
 
+const INITIAL_ARTWORK_STATE = {
+    title: "",
+    price: "",
+    description: "",
+    medium: "Other" as ArtworkMedium,
+    origin: "",
+    process: "",
+    materialsText: "",
+    timeSpent: "",
+    peopleInvolved: "",
+    artisanStory: "",
+    pieceMeaning: "",
+    workValues: "",
+    impactMetrics: "",
+    aspirations: "",
+    imageUrls: [] as string[],
+    primaryImageIndex: 0,
+    isForSale: true,
+};
+
 interface ProfileProps {
-    profile: any; // Using any for flexibility in this hybrid mock/real setup
+    profile: any;
     artworks: any[];
 }
 
@@ -42,775 +56,316 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
     const { user } = useAuth();
     const { t } = useLocale();
     const router = useRouter();
-    const isOwnProfile = user?.uid === profile.uid || profile.uid === 'me'; // 'me' handling for dev
+    const isOwnProfile = user?.uid === profile.uid || profile.uid === 'me';
 
+    // UI state
     const [isEditing, setIsEditing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'collection' | 'journal' | 'events' | 'collaborations' | 'history'>('collection');
+    const [isAddingArtwork, setIsAddingArtwork] = useState(false);
+    const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+    const [artworkStatus, setArtworkStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+    // Profile state
     const [bio, setBio] = useState(profile.bio ?? "");
     const [location, setLocation] = useState(profile.location ?? "");
     const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || profile.photoURL || "");
-    const [yearsOfPracticeStr, setYearsOfPracticeStr] = useState(
-        profile.yearsOfPractice != null ? String(profile.yearsOfPractice) : ""
-    );
+    const [yearsOfPracticeStr, setYearsOfPracticeStr] = useState(profile.yearsOfPractice != null ? String(profile.yearsOfPractice) : "");
     const [craftStatement, setCraftStatement] = useState(profile.craftStatement ?? "");
+
+    // Data state
     const [userArtworks, setUserArtworks] = useState<any[]>(artworks);
-    const [attendingEvents, setAttendingEvents] = useState<any[]>([]);
     const [transactions, setTransactions] = useState<any[]>([]);
-    const [userEvents, setUserEvents] = useState<any[]>([]); // Hosting
-    const [userCollaborations, setUserCollaborations] = useState<any[]>([]); // NEW
-    const [journalEntries, setJournalEntries] = useState<any[]>([]); // NEW: REAL JOURNAL DATA
+    const [userCollaborations, setUserCollaborations] = useState<any[]>([]);
+
+    // Form state
+    const [newArtwork, setNewArtwork] = useState(INITIAL_ARTWORK_STATE);
 
     const refreshProfileData = async () => {
         if (!user) return;
         try {
             const targetUid = profile.uid === 'me' ? user.uid : profile.uid;
-            logger.debug('ARTWORK_FETCH_SUCCESS', { message: "Refreshing profile", userId: targetUid, source: 'frontend' });
-
-            // 1. Fetch Artworks
-            const { getArtworksByArtist } = await import("@/backend/actions/artwork");
+            
+            // Re-fetch artworks (Server-side query enabled)
             const freshArtworks = await getArtworksByArtist(targetUid);
             setUserArtworks(freshArtworks);
 
-            // 2. Fetch Hosted Events
-            const { getEventsByOrganizer } = await import("@/backend/actions/event");
-            const hosted = await getEventsByOrganizer(targetUid);
-            setUserEvents(hosted);
-
-            // 3. Fetch Registered/Attending Events
-            const { getRSVPsByUser } = await import("@/backend/actions/rsvp");
-            const { getEventById } = await import("@/backend/actions/event");
-            const rsvps = await getRSVPsByUser(user.uid);
-            const attending = await Promise.all(
-                rsvps.map(r => getEventById(r.eventId))
-            );
-            setAttendingEvents(attending.filter(Boolean));
-
-            // 4. Fetch Real Transactions (Buy/Sell)
-            const q = query(collection(db, "users", user.uid, "transactions"));
+            // Transactions (Subcollection Client Read - Rules protected)
+            const q = query(collection(db, "users", targetUid, "transactions"));
             const snap = await getDocs(q);
             setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-            // 5. Fetch Studio Journal
-            const { getJournalEntries } = await import("@/backend/actions/journal");
-            const entries = await getJournalEntries(targetUid);
-            setJournalEntries(entries);
-
-            // 6. Fetch Collaborations
-            const { getCollaborationsByAuthorId } = await import("@/backend/actions/collaboration");
-            const colabs = await getCollaborationsByAuthorId(targetUid);
-            setUserCollaborations(colabs);
-
         } catch (e: any) {
-            logger.error('SYSTEM_ERROR', { message: "Failed to refresh profile data", error: e.message, source: 'frontend' });
+            logger.error('SYSTEM_ERROR', { message: "Refresh failed", error: e.message, source: 'frontend' });
         }
     };
 
+    // Prevent redundant mount fetch by checking if we already have data
+    const [hasMounted, setHasMounted] = useState(false);
     useEffect(() => {
-        if (isOwnProfile && user) {
-            refreshProfileData();
-        }
-    }, [isOwnProfile, user]);
-
-    const totalSpent = transactions.reduce((acc, t) => acc + (t.type === 'buy' ? t.amount : 0), 0);
-    const totalEarned = transactions.reduce((acc, t) => acc + (t.type === 'sell' ? t.amount : 0), 0);
-
-    const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-    const [isAddingArtwork, setIsAddingArtwork] = useState(false);
-    const [isAddingJournal, setIsAddingJournal] = useState(false); // NEW
-    
-    // Unified Tab handling: URL parameter takes precedence
-    const searchParams = useSearchParams();
-    const queryTab = searchParams?.get('tab');
-    const validTabs = ['collection', 'journal', 'events', 'collaborations', 'history'];
-    const initialTab = (queryTab && validTabs.includes(queryTab)) ? queryTab as any : 'collection';
-
-    const [activeTab, setActiveTab] = useState<'collection' | 'journal' | 'events' | 'collaborations' | 'history'>(initialTab);
-
-
-
-    const [newArtwork, setNewArtwork] = useState({
-        title: "",
-        price: "",
-        description: "",
-        medium: "Other" as ArtworkMedium,
-        origin: "",
-        process: "",
-        materialsText: "",
-        timeSpent: "",
-        peopleInvolved: "",
-        artisanStory: "",
-        pieceMeaning: "",
-        workValues: "",
-        impactMetrics: "",
-        aspirations: "",
-        imageUrls: [] as string[],
-        primaryImageIndex: 0,
-        isForSale: true,
-    });
-    const [newJournal, setNewJournal] = useState({ title: '', content: '', imageUrl: '' }); // NEW
-    const [artworkStatus, setArtworkStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-    const [journalStatus, setJournalStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle'); // NEW
-    const [supporting, setSupporting] = useState(false);
-
-    const handleSupport = async () => {
-        if (!user) {
-            router.push(`/auth?redirect=/profile/${profile.uid}`);
+        if (!hasMounted) {
+            setHasMounted(true);
             return;
         }
-
-        setSupporting(true);
-        try {
-            const res = await fetch('/api/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ itemId: profile.uid, type: 'support', userId: user.uid }),
-            });
-
-            const { checkoutUrl } = await res.json();
-            if (checkoutUrl) {
-                logger.info('COMMERCE_CHECKOUT_START', { userId: user.uid, itemId: profile.uid, source: 'frontend' });
-                router.push(checkoutUrl);
-            }
-        } catch (e: any) {
-            logger.error('PAYMENT_FAILURE', { userId: user.uid, error: e.message, source: 'frontend' });
-            setSupporting(false);
-        }
-    };
-
-    const handleAddJournalEntry = async () => {
-        if (!user) return;
-        setJournalStatus('saving');
-        try {
-            const { createJournalEntry } = await import("@/backend/actions/journal");
-            const result = await createJournalEntry(user.uid, newJournal);
-            if (result.success) {
-                logger.info('JOURNAL_CREATE_SUCCESS', { message: "Journal entry created", userId: user.uid, source: 'frontend' });
-                setJournalStatus('success');
-                await refreshProfileData();
-                setTimeout(() => {
-                    setIsAddingJournal(false);
-                    setJournalStatus('idle');
-                    setNewJournal({ title: '', content: '', imageUrl: '' });
-                }, 1000);
-            } else {
-                setJournalStatus('error');
-                logger.error('SYSTEM_ERROR', { message: "Failed to create journal entry", error: result.error, source: 'frontend' });
-            }
-        } catch (error: any) {
-            setJournalStatus('error');
-            logger.error('SYSTEM_ERROR', { message: "Journal entry unexpected error", error: error.message, source: 'frontend' });
-        }
-    };
+        if (isOwnProfile && user) refreshProfileData();
+    }, [isOwnProfile, user, hasMounted]);
 
     const handleSave = async () => {
         if (!user) return;
         setStatus('saving');
+        try {
+            const idToken = await (user as any).getIdToken();
+            const result = await updateUserProfile({
+                bio, location, avatarUrl,
+                yearsOfPractice: parseInt(yearsOfPracticeStr, 10) || 0,
+                craftStatement: craftStatement.trim() || undefined,
+            }, idToken);
 
-        const yp =
-            yearsOfPracticeStr.trim() === ""
-                ? undefined
-                : parseInt(yearsOfPracticeStr.trim(), 10);
-        const yearsPayload =
-            yp !== undefined && !Number.isNaN(yp) ? yp : undefined;
-
-        const result = await updateUserProfile(user.uid, {
-            bio,
-            location,
-            avatarUrl,
-            ...(yearsPayload !== undefined ? { yearsOfPractice: yearsPayload } : {}),
-            craftStatement: craftStatement.trim() || undefined,
-        });
-
-        if (result.success) {
-            logger.info('USER_UPDATE_SUCCESS', { userId: user.uid, source: 'frontend' });
-            setStatus('success');
-            setTimeout(() => {
-                setIsEditing(false);
-                setStatus('idle');
-            }, 1000);
-        } else {
-            logger.error('SYSTEM_ERROR', { message: "Failed to save profile", error: result.error, source: 'frontend' });
+            if (result.success) {
+                setStatus('success');
+                setTimeout(() => { setIsEditing(false); setStatus('idle'); }, 1500);
+            } else {
+                setStatus('error');
+            }
+        } catch (e) {
             setStatus('error');
-            setTimeout(() => setStatus('idle'), 3000);
         }
     };
 
     const handleAddArtwork = async () => {
         if (!user) return;
         setArtworkStatus('saving');
-
         try {
-            const { createArtwork } = await import("@/backend/actions/artwork");
-
-            const materials = newArtwork.materialsText
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean);
-
+            const idToken = await (user as any).getIdToken();
             const result = await createArtwork({
-                title: newArtwork.title,
-                description: newArtwork.description.trim() || undefined,
+                ...newArtwork,
                 price: parseFloat(newArtwork.price) || 0,
                 imageUrl: newArtwork.imageUrls[0] || "",
-                imageUrls: newArtwork.imageUrls,
-                primaryImageIndex: newArtwork.primaryImageIndex,
-                medium: newArtwork.medium,
-                artistId: user.uid,
                 artistName: profile.displayName || "Anonymous",
-                location: location.trim() || undefined,
-                currency: "GBP",
-                isForSale: newArtwork.isForSale,
-                origin: newArtwork.origin.trim() || undefined,
-                process: newArtwork.process.trim() || undefined,
-                materials: materials.length ? materials : undefined,
-                timeSpent: newArtwork.timeSpent.trim() || undefined,
-                peopleInvolved: newArtwork.peopleInvolved.trim() || undefined,
-                artisanStory: newArtwork.artisanStory.trim() || undefined,
-                pieceMeaning: newArtwork.pieceMeaning.trim() || undefined,
-                workValues: newArtwork.workValues.trim() || undefined,
-                impactMetrics: newArtwork.impactMetrics.trim() || undefined,
-                aspirations: newArtwork.aspirations.trim() || undefined,
-            });
+            }, idToken);
 
             if (result.success) {
-                logger.info('ARTWORK_CREATE_SUCCESS', { userId: user.uid, artworkId: result.id, source: 'frontend' });
                 setArtworkStatus('success');
-                await refreshProfileData(); 
-                setTimeout(() => {
-                    setIsAddingArtwork(false);
-                    setArtworkStatus('idle');
-                    setNewArtwork({
-                        title: "",
-                        price: "",
-                        description: "",
-                        medium: "Other",
-                        origin: "",
-                        process: "",
-                        materialsText: "",
-                        timeSpent: "",
-                        peopleInvolved: "",
-                        artisanStory: "",
-                        pieceMeaning: "",
-                        workValues: "",
-                        impactMetrics: "",
-                        aspirations: "",
-                        imageUrls: [],
-                        primaryImageIndex: 0,
-                        isForSale: true,
-                    });
-                }, 1000);
+                setNewArtwork(INITIAL_ARTWORK_STATE);
+                await refreshProfileData();
+                setTimeout(() => { setIsAddingArtwork(false); setArtworkStatus('idle'); }, 1500);
             } else {
                 setArtworkStatus('error');
-                logger.error('ARTWORK_CREATE_FAILURE', { error: result.error, source: 'frontend' });
-                setTimeout(() => setArtworkStatus('idle'), 3000);
             }
-        } catch (e: any) {
-            logger.error('ARTWORK_CREATE_FAILURE', { error: e.message, source: 'frontend' });
+        } catch (e) {
             setArtworkStatus('error');
-            setTimeout(() => setArtworkStatus('idle'), 3000);
         }
     };
 
-    const roleLabel = profile.role?.trim()
-        ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1).toLowerCase()
-        : NOT_PROVIDED;
+    const totalSpent = transactions.reduce((acc, t: any) => acc + (t.type === 'buy' ? t.amount : 0), 0);
+    const totalEarned = transactions.reduce((acc, t: any) => acc + (t.type === 'sell' ? t.amount : 0), 0);
 
     return (
-        <div className="space-y-16">
-            <div className="flex flex-col md:flex-row gap-8 items-start w-full">
-                <div className="shrink-0">
-                    <div className="relative w-40 h-40 overflow-hidden bg-muted/30 border border-border/10">
-                        <Image
-                            src={avatarUrl || profile.avatarUrl || profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.displayName}`}
-                            alt={profile.displayName || "User"}
-                            fill
-                            sizes="(max-width: 768px) 100vw, 200px"
-                            className="object-cover"
-                        />
-                        {isOwnProfile && isEditing && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm animate-in fade-in zoom-in-95">
-                                <ImageUpload
-                                    currentImageUrl={avatarUrl}
-                                    onImageUploaded={setAvatarUrl}
-                                />
-                            </div>
-                        )}
-                    </div>
+        <div className="space-y-16 animate-in fade-in duration-700 max-w-7xl mx-auto px-4 py-8">
+            {/* Header / Meta */}
+            <div className="flex flex-col md:flex-row gap-12 items-start">
+                <div className="relative w-48 h-48 bg-muted/20 border border-border/5 group overflow-hidden">
+                    <Image
+                        src={avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.displayName}`}
+                        alt={profile.displayName}
+                        fill
+                        className="object-cover grayscale hover:grayscale-0 transition-all duration-700"
+                    />
+                    {isOwnProfile && isEditing && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ImageUpload currentImageUrl={avatarUrl} onImageUploaded={setAvatarUrl} />
+                        </div>
+                    )}
                 </div>
 
-                <div className="space-y-5 flex-1 w-full">
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                        <div className="space-y-2">
-                            <h1 className="text-4xl md:text-5xl font-serif font-medium tracking-tight">
-                                {profile.displayName || "Anonymous"}
-                            </h1>
-                            <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
-                                {isEditing ? (
-                                    <Input
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                        className="h-9 max-w-xs"
-                                    />
-                                ) : (
-                                    <span>{textOrMissing(location)}</span>
-                                )}
-                                <span>·</span>
-                                <span>{roleLabel}</span>
-                            </div>
+                <div className="flex-1 space-y-6">
+                    <div className="flex flex-col md:flex-row justify-between items-baseline gap-4">
+                        <div>
+                            <h1 className="text-6xl font-serif font-medium tracking-tight mb-2">{profile.displayName || "Artisan"}</h1>
+                            <p className="text-muted-foreground font-sans tracking-wide uppercase text-[10px] opacity-60">
+                                {textOrMissing(location)} · {profile.role}
+                            </p>
                         </div>
-                        <div className="flex gap-2 shrink-0">
-                            {isOwnProfile ? (
-                                <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
-                                    {isEditing ? <Check className="h-4 w-4 mr-2" /> : <Edit2 className="h-4 w-4 mr-2" />}
-                                    {isEditing ? "Done" : "Edit"}
-                                </Button>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Button variant="secondary" size="sm" onClick={handleSupport} disabled={supporting}>
-                                        {supporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4 mr-2" />}
-                                        {supporting ? "…" : "Support"}
-                                    </Button>
-                                    <Button variant="outline" size="sm" asChild>
-                                        <Link href="/collaborate">Collaborate</Link>
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
+                        {isOwnProfile && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setIsEditing(!isEditing)}
+                                className="text-[10px] uppercase tracking-widest opacity-60 hover:opacity-100"
+                            >
+                                {isEditing ? "Cancel" : "Edit Profile"}
+                            </Button>
+                        )}
                     </div>
 
-                    <div className="max-w-2xl space-y-5">
+                    <div className="max-w-2xl text-muted-foreground leading-relaxed italic opacity-80 font-serif text-lg">
                         {isEditing ? (
-                            <>
-                                <div className="space-y-1">
-                                    <label className="text-sm text-muted-foreground">Bio</label>
-                                    <Textarea
-                                        value={bio}
-                                        onChange={(e) => setBio(e.target.value)}
-                                        className="min-h-[88px]"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm text-muted-foreground">Years in practice</label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        max={80}
-                                        value={yearsOfPracticeStr}
-                                        onChange={(e) => setYearsOfPracticeStr(e.target.value)}
-                                        className="max-w-[100px]"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm text-muted-foreground">Practice</label>
-                                    <Textarea
-                                        value={craftStatement}
-                                        onChange={(e) => setCraftStatement(e.target.value)}
-                                        className="min-h-[100px]"
-                                    />
-                                </div>
-                            </>
+                            <Textarea 
+                                value={bio} 
+                                onChange={e => setBio(e.target.value)} 
+                                className="min-h-[120px] bg-transparent border-border/20" 
+                                placeholder="Your artistic journey..."
+                            />
                         ) : (
-                            <div className="space-y-4 text-muted-foreground leading-relaxed">
-                                <p>{bio.trim() ? bio : NOT_PROVIDED}</p>
-                                <p className="text-sm">
-                                    {(() => {
-                                        const y = parseInt(yearsOfPracticeStr, 10);
-                                        return yearsOfPracticeStr.trim() && !Number.isNaN(y) && y > 0
-                                            ? `${y} years`
-                                            : NOT_PROVIDED;
-                                    })()}
-                                </p>
-                                <p>{craftStatement.trim() ? craftStatement : NOT_PROVIDED}</p>
-                            </div>
+                            <p className="line-clamp-4">{bio || NOT_PROVIDED}</p>
                         )}
                     </div>
 
                     {isEditing && (
-                        <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSave} disabled={status === "saving"}>
-                                {status === "saving" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {status === "success" && "Saved"}
-                                {status === "error" && "Error"}
-                                {status === "idle" && "Save"}
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)} disabled={status === "saving"}>
-                                Cancel
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-left-4 duration-500">
+                             <Input placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} />
+                             <Input placeholder="Years of Practice" value={yearsOfPracticeStr} onChange={e => setYearsOfPracticeStr(e.target.value)} type="number" />
+                             <Button onClick={handleSave} disabled={status === 'saving'} className="md:col-span-2">
+                                {status === 'saving' ? "Syncing..." : "Update Narrative"}
                             </Button>
                         </div>
                     )}
                 </div>
             </div>
 
+            {/* Stats Overview */}
             {isOwnProfile && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/20 rounded-sm overflow-hidden text-sm">
-                    <div className="bg-background p-5 space-y-1">
-                        <div className="text-muted-foreground">Purchases</div>
-                        <div className="font-serif text-2xl">£{totalSpent.toLocaleString()}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/10 border-y border-border/10">
+                    <div className="bg-background py-8 px-6 text-center">
+                        <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Acquisitions</p>
+                        <p className="text-3xl font-serif">£{totalSpent}</p>
                     </div>
-                    <div className="bg-background p-5 space-y-1 text-center md:text-left">
-                        <div className="text-muted-foreground">Sales</div>
-                        <div className="font-serif text-2xl">£{totalEarned.toLocaleString()}</div>
+                    <div className="bg-background py-8 px-6 text-center">
+                        <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Revenue</p>
+                        <p className="text-3xl font-serif">£{totalEarned}</p>
                     </div>
-                    <div className="bg-background p-5 space-y-1 text-center md:text-left">
-                        <div className="text-muted-foreground">Listed</div>
-                        <div className="font-serif text-2xl">{userArtworks.filter((a) => a.status === "available").length}</div>
+                    <div className="bg-background py-8 px-6 text-center">
+                        <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Cataloged</p>
+                        <p className="text-3xl font-serif">{userArtworks.length}</p>
                     </div>
-                    <div className="bg-background p-5 space-y-1 text-right md:text-left">
-                        <div className="text-muted-foreground">Calls</div>
-                        <div className="font-serif text-2xl">{userCollaborations.length}</div>
+                    <div className="bg-background py-8 px-6 text-center">
+                        <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Collaborations</p>
+                        <p className="text-3xl font-serif">{userCollaborations.length}</p>
                     </div>
                 </div>
             )}
 
-            <div className="space-y-8">
-                <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border/15 pb-3 text-sm">
-                    <button
-                        type="button"
-                        className={activeTab === "collection" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
-                        onClick={() => setActiveTab("collection")}
-                    >
-                        {t("collection")}
-                    </button>
-                    <button
-                        type="button"
-                        className={activeTab === "journal" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
-                        onClick={() => setActiveTab("journal")}
-                    >
-                        Journal
-                    </button>
-                    <button
-                        type="button"
-                        className={activeTab === "collaborations" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
-                        onClick={() => setActiveTab("collaborations")}
-                    >
-                        Calls
-                    </button>
-                    {isOwnProfile && (
-                        <>
-                            <button
-                                type="button"
-                                className={activeTab === "events" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
-                                onClick={() => setActiveTab("events")}
-                            >
-                                Events
-                            </button>
-                            <button
-                                type="button"
-                                className={activeTab === "history" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}
-                                onClick={() => setActiveTab("history")}
-                            >
-                                History
-                            </button>
-                        </>
-                    )}
+            {/* Main Tabs */}
+            <div className="space-y-12">
+                <div className="flex gap-12 border-b border-border/10 pb-4 text-[11px] uppercase tracking-widest font-bold">
+                    <button onClick={() => setActiveTab('collection')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'collection' ? "border-b-2 border-primary" : "opacity-40")}>Collection</button>
+                    <button onClick={() => setActiveTab('journal')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'journal' ? "border-b-2 border-primary" : "opacity-40")}>Journal</button>
+                    <button onClick={() => setActiveTab('collaborations')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'collaborations' ? "border-b-2 border-primary" : "opacity-40")}>Calls</button>
+                    <button onClick={() => setActiveTab('history')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'history' ? "border-b-2 border-primary" : "opacity-40")}>Provenance</button>
                 </div>
+  
+                {activeTab === 'history' && (
+                    <div className="space-y-24 max-w-4xl py-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                        <div className="space-y-4">
+                            <h2 className="font-serif text-5xl italic opacity-30">Chronicle</h2>
+                            <p className="text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">Verifiable movement through the ecosystem</p>
+                        </div>
 
-                {/* Collection Tab */}
-                {activeTab === 'collection' && (
-                    <div className="space-y-8">
-                        {isOwnProfile && isAddingArtwork && (
-                            <div className="border border-border/15 p-6 space-y-5 bg-muted/10">
-                                <h3 className="font-serif text-xl">New listing</h3>
-                                <p className="text-sm text-muted-foreground">Empty fields show as &ldquo;Not provided&rdquo; on the piece page.</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Title</label>
-                                        <Input value={newArtwork.title} onChange={(e) => setNewArtwork({ ...newArtwork, title: e.target.value })} />
+                        <div className="relative border-l border-border/10 pl-16 space-y-20">
+                            {/* Grouping logic can be complex, so we'll keep it explicit */}
+                            {[...userArtworks]
+                                .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                .map((artwork, idx) => (
+                                <div key={artwork.id} className="relative group/time">
+                                    <div className="absolute -left-[69px] top-4 w-2 h-2 bg-primary/20 ring-4 ring-background transition-all group-hover/time:bg-primary/60 group-hover/time:scale-125" />
+                                    <div className="space-y-4">
+                                        <p className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-30">
+                                            {new Date(artwork.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                                        </p>
+                                        <div className="grid md:grid-cols-2 gap-12 items-baseline">
+                                            <div className="space-y-4">
+                                                <h3 className="font-serif text-3xl leading-none">
+                                                    <Link href={`/artwork/${artwork.id}`} className="hover:text-primary transition-colors underline-offset-8 decoration-border/20 decoration-1 hover:underline">
+                                                        {artwork.title}
+                                                    </Link>
+                                                </h3>
+                                                <p className="text-sm italic text-muted-foreground leading-relaxed opacity-60">
+                                                    {artwork.artisanStory || "The narrative for this piece remains captured in the physical form."}
+                                                </p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-8 text-[10px] font-bold tracking-widest uppercase text-muted-foreground/40">
+                                                <div className="space-y-1">
+                                                    <span>Medium</span>
+                                                    <p className="text-foreground/60">{artwork.medium}</p>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <span>Status</span>
+                                                    <p className="text-foreground/60">{artwork.status}</p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm text-muted-foreground">Price (GBP)</label>
-                                        <Input type="number" min={0} step="0.01" value={newArtwork.price} onChange={(e) => setNewArtwork({ ...newArtwork, price: e.target.value })} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm text-muted-foreground">Medium</label>
-                                        <Select
-                                            value={newArtwork.medium}
-                                            onChange={(e) =>
-                                                setNewArtwork({
-                                                    ...newArtwork,
-                                                    medium: e.target.value as ArtworkMedium,
-                                                })
-                                            }
-                                        >
-                                            {ARTWORK_MEDIA.map((m) => (
-                                                <option key={m} value={m}>
-                                                    {m}
-                                                </option>
-                                            ))}
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Images</label>
-                                        <ArtworkImageUpload
-                                            imageUrls={newArtwork.imageUrls}
-                                            onImagesChangeAction={(urls: string[]) =>
-                                                setNewArtwork({ ...newArtwork, imageUrls: urls })
-                                            }
-                                        />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Origin</label>
-                                        <Textarea value={newArtwork.origin} onChange={(e) => setNewArtwork({ ...newArtwork, origin: e.target.value })} className="min-h-[64px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Process</label>
-                                        <Textarea value={newArtwork.process} onChange={(e) => setNewArtwork({ ...newArtwork, process: e.target.value })} className="min-h-[72px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Materials (comma-separated)</label>
-                                        <Input value={newArtwork.materialsText} onChange={(e) => setNewArtwork({ ...newArtwork, materialsText: e.target.value })} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm text-muted-foreground">Time</label>
-                                        <Input value={newArtwork.timeSpent} onChange={(e) => setNewArtwork({ ...newArtwork, timeSpent: e.target.value })} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-sm text-muted-foreground">People</label>
-                                        <Input value={newArtwork.peopleInvolved} onChange={(e) => setNewArtwork({ ...newArtwork, peopleInvolved: e.target.value })} />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Maker note</label>
-                                        <Textarea value={newArtwork.artisanStory} onChange={(e) => setNewArtwork({ ...newArtwork, artisanStory: e.target.value })} className="min-h-[72px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Meaning</label>
-                                        <Textarea value={newArtwork.pieceMeaning} onChange={(e) => setNewArtwork({ ...newArtwork, pieceMeaning: e.target.value })} className="min-h-[64px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Values</label>
-                                        <Textarea value={newArtwork.workValues} onChange={(e) => setNewArtwork({ ...newArtwork, workValues: e.target.value })} className="min-h-[64px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Impact</label>
-                                        <Textarea value={newArtwork.impactMetrics} onChange={(e) => setNewArtwork({ ...newArtwork, impactMetrics: e.target.value })} className="min-h-[64px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Aspirations</label>
-                                        <Textarea value={newArtwork.aspirations} onChange={(e) => setNewArtwork({ ...newArtwork, aspirations: e.target.value })} className="min-h-[64px]" />
-                                    </div>
-                                    <div className="space-y-1 md:col-span-2">
-                                        <label className="text-sm text-muted-foreground">Extra note</label>
-                                        <Textarea value={newArtwork.description} onChange={(e) => setNewArtwork({ ...newArtwork, description: e.target.value })} className="min-h-[56px]" />
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm md:col-span-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={newArtwork.isForSale}
-                                            onChange={(e) =>
-                                                setNewArtwork({
-                                                    ...newArtwork,
-                                                    isForSale: e.target.checked,
-                                                })
-                                            }
-                                            className="rounded-none border-border/40"
-                                        />
-                                        For sale
-                                    </label>
                                 </div>
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                    <Button
-                                        size="sm"
-                                        onClick={handleAddArtwork}
-                                        disabled={artworkStatus === "saving" || !newArtwork.title.trim() || !newArtwork.imageUrls[0]}
-                                    >
-                                        {artworkStatus === "saving" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        {artworkStatus === "success" ? "Saved" : "Publish"}
-                                    </Button>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAddingArtwork(false)}>
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {userArtworks.map((artwork: any) => (
-                                <ArtworkCard key={artwork.id} artwork={artwork} />
                             ))}
-                            {isOwnProfile && (
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAddingArtwork(true)}
-                                    className="aspect-[3/4] border border-dashed border-border/30 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground hover:bg-muted/20"
-                                >
-                                    <Grid className="h-5 w-5 opacity-50" />
-                                    Add work
-                                </button>
+                            {userArtworks.length === 0 && (
+                                <p className="font-serif text-2xl italic opacity-20">No provenance entries recorded yet.</p>
                             )}
                         </div>
                     </div>
                 )}
-
-                {/* Studio Journal Tab */}
-                {activeTab === 'journal' && (
-                    <div className="space-y-24 max-w-4xl">
-                        {journalEntries.map((entry) => (
-                            <div key={entry.id} className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start group">
-                                <div className="md:col-span-5 aspect-[4/5] relative overflow-hidden bg-secondary/10 border border-border/5">
-                                    {entry.imageUrl && (
-                                        <Image 
-                                            src={entry.imageUrl} 
-                                            alt={entry.title} 
-                                            fill 
-                                            className="object-cover grayscale transition-all duration-1000 scale-100 group-hover:scale-105" 
-                                        />
-                                    )}
-                                </div>
-                                <div className="md:col-span-7 space-y-6 pt-4">
-                                    <div className="text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">
-                                        {new Date(entry.createdAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
-                                    </div>
-                                    <h4 className="text-4xl font-serif font-medium leading-[1.1]">{entry.title}</h4>
-                                    <p className="text-xl text-muted-foreground font-light italic leading-relaxed">
-                                        {entry.content}
-                                    </p>
-                                    <div className="pt-6">
-                                        <div className="h-px w-20 bg-primary/20" />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Collaborations Tab */}
-                {activeTab === 'collaborations' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {userCollaborations.map((collab) => (
-                            <div key={collab.id} className="p-10 border border-border/10 bg-secondary/5 space-y-6 group">
-                                <div className="flex justify-between items-start">
-                                    <div className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/60">{collab.type} CALL</div>
-                                    <div className={`px-3 py-1 text-[9px] font-bold tracking-widest uppercase border ${collab.status === 'Open' ? 'border-primary/20 text-primary' : 'border-border text-muted-foreground'}`}>
-                                        {collab.status}
-                                    </div>
-                                </div>
-                                <h4 className="text-2xl font-serif">{collab.title}</h4>
-                                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 italic">
-                                    {collab.description}
-                                </p>
-                                <div className="flex items-center justify-between pt-6 border-t border-border/10">
-                                    <div className="text-[10px] font-bold tracking-widest uppercase opacity-40">{collab.location}</div>
-                                    <Button variant="ghost" size="sm" asChild className="gap-2 group/btn">
-                                        <Link href={`/collaborate/${collab.id}`}>
-                                            Manage Call <ArrowRight className="h-3 w-3 group-hover/btn:translate-x-1 transition-transform" />
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                        {userCollaborations.length === 0 && (
-                            <div className="col-span-full py-24 text-center border border-dashed border-border/20">
-                                <p className="font-serif italic text-xl text-muted-foreground">Seeking new creative horizons?</p>
-                                <Button variant="link" asChild className="mt-4 uppercase tracking-widest text-[10px] font-bold">
-                                    <Link href="/collaborate/create">Initialise Collaboration Call</Link>
+  
+                {activeTab === 'collection' && (
+                    <div className="space-y-12">
+                        {isOwnProfile && (
+                            <div className="flex justify-start">
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setIsAddingArtwork(!isAddingArtwork)}
+                                    className="border-primary/20 hover:border-primary/50 text-[10px] tracking-widest uppercase py-6 px-12"
+                                >
+                                    {isAddingArtwork ? "Discard Form" : "Catalog New Provenance"}
                                 </Button>
                             </div>
                         )}
-                    </div>
-                )}
 
-                {/* History Tab */}
-                {activeTab === 'history' && (
-                    <div className="space-y-12">
-                        <div className="space-y-6">
-                            <h3 className="font-serif text-2xl tracking-tight">Activity</h3>
-                            <div className="border border-border/10 divide-y divide-border/10">
-                                {transactions.map((tx) => (
-                                    <TransactionRow key={tx.id} tx={tx} />
-                                ))}
+                        {isAddingArtwork && (
+                            <div className="p-12 border border-border/10 bg-secondary/5 space-y-8 animate-in slide-in-from-top-4 duration-700">
+                                <h3 className="font-serif text-3xl">Entry of New Work</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <Input placeholder="Title" value={newArtwork.title} onChange={e => setNewArtwork({...newArtwork, title: e.target.value})} className="bg-transparent" />
+                                        <Input placeholder="Valuation (GBP)" type="number" value={newArtwork.price} onChange={e => setNewArtwork({...newArtwork, price: e.target.value})} className="bg-transparent" />
+                                        <Select 
+                                            value={newArtwork.medium} 
+                                            onChange={(e) => setNewArtwork({...newArtwork, medium: e.target.value as ArtworkMedium})} 
+                                        >
+                                            {ARTWORK_MEDIA.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))}
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <ArtworkImageUpload 
+                                            imageUrls={newArtwork.imageUrls} 
+                                            onImagesChangeAction={(urls) => setNewArtwork({...newArtwork, imageUrls: urls})} 
+                                        />
+                                    </div>
+                                    <Textarea 
+                                        placeholder="The story, the meaning, the journey of this piece..." 
+                                        value={newArtwork.artisanStory} 
+                                        onChange={e => setNewArtwork({...newArtwork, artisanStory: e.target.value})} 
+                                        className="md:col-span-2 min-h-[160px] bg-transparent" 
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-4">
+                                    <Button 
+                                        onClick={handleAddArtwork} 
+                                        disabled={artworkStatus === 'saving'}
+                                        className="px-12 py-6 bg-primary text-primary-foreground"
+                                    >
+                                        {artworkStatus === 'saving' ? "Recording..." : "Seal Record"}
+                                    </Button>
+                                </div>
                             </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+                            {userArtworks.map(artwork => (
+                                <ArtworkCard key={artwork.id} artwork={artwork} />
+                            ))}
                         </div>
                     </div>
                 )}
-
-                {/* My Schedule Tab */}
-                {activeTab === 'events' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {userEvents.map((event: any) => (
-                            <EventMiniCard key={event.id} event={event} isOwner={true} />
-                        ))}
-                        {attendingEvents.map((event: any) => (
-                            <EventMiniCard key={event.id} event={event} isOwner={false} />
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function EventMiniCard({ event, isOwner }: { event: any, isOwner: boolean }) {
-    if (!event) return null;
-    return (
-        <div className="group relative border border-border/10 rounded-none overflow-hidden bg-card hover:bg-secondary/5 transition-all">
-            <div className="aspect-video relative bg-muted grayscale transition-all duration-700">
-                {event.imageUrl ? (
-                    <Image 
-                        src={event.imageUrl} 
-                        alt={event.title} 
-                        fill 
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover" 
-                    />
-                ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                        <Calendar className="h-8 w-8 opacity-10" />
-                    </div>
-                )}
-            </div>
-            <div className="p-4 space-y-2">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h3 className="font-serif font-medium truncate pr-2 text-sm" title={event.title}>{event.title}</h3>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                            {new Date(event.startTime).toLocaleDateString()}
-                        </p>
-                    </div>
-                    <div className="text-[10px] font-bold tracking-[0.1em] text-primary/60 border border-primary/10 px-2 py-0.5">
-                        {isOwner ? 'ORGANIZER' : 'REGISTERED'}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function TransactionRow({ tx }: { tx: any }) {
-    return (
-        <div className="p-6 flex justify-between items-center hover:bg-secondary/5 transition-colors group">
-            <div className="flex items-center gap-6">
-                <div className="relative h-16 w-16 bg-muted overflow-hidden border border-border/10 shrink-0">
-                    {tx.imageUrl ? (
-                        <Image 
-                            src={tx.imageUrl} 
-                            alt={tx.itemTitle || tx.title} 
-                            fill 
-                            className="object-cover grayscale transition-all duration-700" 
-                        />
-                    ) : (
-                        <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase opacity-20">Art</div>
-                    )}
-                </div>
-                <div>
-                    <Link 
-                        href={`/artwork/${tx.itemId || tx.id}`} 
-                        className="font-serif text-lg hover:text-primary transition-colors block"
-                    >
-                        {tx.itemTitle || tx.title || "Untitled work"}
-                    </Link>
-                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">
-                        {tx.type === 'sell' ? 'Sold to Collector' : 'Acquired from Artisan'} • {new Date(tx.date || tx.createdAt).toLocaleDateString()}
-                    </div>
-                </div>
-            </div>
-            <div className="text-right">
-                <div className={cn(
-                    "font-serif text-xl",
-                    tx.type === 'sell' ? "text-emerald-600" : "text-foreground"
-                )}>
-                    {tx.type === 'sell' ? '+' : '-'}£{tx.amount.toLocaleString()}
-                </div>
-                <div className="text-[9px] font-bold tracking-widest text-muted-foreground uppercase opacity-40 mt-1">
-                    {tx.currency || 'GBP'}
-                </div>
             </div>
         </div>
     );

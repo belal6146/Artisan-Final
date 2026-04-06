@@ -57,31 +57,52 @@ export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> 
         const q = query(
             collection(db, "artworks"), 
             where("artistId", "==", artistId),
-            orderBy("createdAt", "desc"),
+            // ORDER BY removed temporarily until composite index is deployed: works: artistId ASC, createdAt DESC
+            // orderBy("createdAt", "desc"),
             limit(100)
         );
         const snap = await getDocs(q);
-        return snap.docs.map(doc => {
+        const artworks = snap.docs.map(doc => {
             const data = doc.data();
             return { 
                 id: doc.id, 
                 ...data, 
-                createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString() 
+                createdAt: data.createdAt?.toDate?.()?.toISOString() || (data.createdAt?.toISOString?.() ?? new Date().toISOString())
             } as Artwork;
         });
+
+        // 🛡️ Safe in-memory fallback for high-performance sort
+        const sorted = artworks.sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
+
+        logger.info('ARTWORK_FETCH_SUCCESS', { artistId, count: sorted.length, source: 'backend' });
+        return sorted;
     } catch (error: any) {
-        logger.error('SYSTEM_ERROR', { message: "Failed fetching artist artworks", artistId, error: error.message, source: 'backend' });
+        logger.error('SYSTEM_ERROR', { 
+            message: "Failed fetching artist artworks", 
+            artistId, 
+            error: error.message || error,
+            code: error.code || 'unknown',
+            source: 'backend' 
+        });
         return [];
     }
 }
 
 // --- Mutations ---
 
-export async function createArtwork(rawData: any) {
-    try {
-        const data = createArtworkSchema.parse(rawData);
-        logger.info('ARTWORK_CREATE_START', { artistId: data.artistId, title: data.title, source: 'backend' });
+import { getAuthorizedUser } from "@/backend/lib/auth-authority";
 
+export async function createArtwork(rawData: any, idToken: string) {
+    try {
+        // 1. Verify Authority & Identity
+        const verifiedUid = await getAuthorizedUser(idToken);
+        logger.info('ARTWORK_CREATE_START', { artistId: verifiedUid, title: rawData.title, source: 'backend' });
+
+        // 2. Derive Identity (Override client-provided ID)
+        const dataPayload = { ...rawData, artistId: verifiedUid };
+        const data = createArtworkSchema.parse(dataPayload);
+
+        // 3. Save to System of Record
         const { isForSale, ...rest } = data;
         const docRef = await addDoc(collection(db, "artworks"), {
             ...rest,
@@ -90,10 +111,15 @@ export async function createArtwork(rawData: any) {
             visibility: "public",
         });
 
-        logger.info('ARTWORK_CREATE_SUCCESS', { artworkId: docRef.id, artistId: data.artistId, source: 'backend' });
+        logger.info('ARTWORK_CREATE_SUCCESS', { artworkId: docRef.id, artistId: verifiedUid, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
-        logger.error('ARTWORK_CREATE_FAILURE', { error: error.message, source: 'backend' });
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "ARTWORK_CREATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
+        
+        logger.error('ARTWORK_CREATE_FAILURE', { error: error.message, source: 'backend', isZod: error.name === "ZodError" });
         return { success: false, error: error.name === "ZodError" ? "Invalid artwork details" : "Could not save artwork" };
     }
 }

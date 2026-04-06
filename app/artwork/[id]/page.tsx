@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { ArtworkDetailClient } from "@/components/art/ArtworkDetailClient";
+import { ArtworkDetailClient } from "@/frontend/components/art/ArtworkDetailClient";
 import { NOT_PROVIDED, materialsLine, textOrMissing } from "@/frontend/lib/artwork-display";
-import { serialize, fonts } from "@/frontend/lib/serialization";
+import { fonts } from "@/frontend/lib/utils";
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -107,7 +107,7 @@ export default async function ArtworkDetailPage({ params }: PageProps) {
 
                 {/* Hand off interactive bits to Client Component */}
                 <ArtworkDetailClient 
-                    artwork={serialize(artwork)} 
+                    artwork={JSON.parse(JSON.stringify(artwork))} 
                     breakdown={breakdown}
                     community={community}
                 />

@@ -5,8 +5,7 @@ import { Button } from "@/frontend/components/ui/button";
 import { ArtworkCard } from "@/frontend/components/art/ArtworkCard";
 import { ArrowRight, ShieldCheck, Globe, Users } from "lucide-react";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
-
-import { fonts } from "@/frontend/lib/serialization";
+import { fonts } from "@/frontend/lib/utils";
 
 interface HomeClientProps {
     initialArtworks: any[];

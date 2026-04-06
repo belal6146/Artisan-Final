@@ -15,14 +15,26 @@ interface Props {
 
 const SAVED_KEY = "artisan_saved_artwork_ids";
 
-export function ArtworkDetailClient({ artwork, breakdown, community }: Props) {
+export function ArtworkDetailClient({ artwork: initialArtwork, breakdown, community }: Props) {
     const { convertPrice, t } = useLocale();
     const router = useRouter();
     const { user } = useAuth();
     const [purchasing, setPurchasing] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [artwork, setArtwork] = useState(initialArtwork);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
+        const { getArtworkById } = require("@/backend/actions/artwork");
+        async function revalidate() {
+            try {
+                const fresh = await getArtworkById(artwork.id);
+                if (fresh) setArtwork(fresh);
+            } catch (e) { /* background silent */ }
+        }
+        revalidate();
+
         if (typeof window === "undefined") return;
         try {
             const list = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]");
@@ -88,7 +100,7 @@ export function ArtworkDetailClient({ artwork, breakdown, community }: Props) {
                             {t("price_architecture")}
                         </span>
                         <span className="font-serif text-4xl">
-                            {convertPrice(artwork.price, artwork.currency).formatted}
+                            {mounted && convertPrice(artwork.price, artwork.currency).formatted}
                         </span>
                     </div>
                     
@@ -127,7 +139,7 @@ export function ArtworkDetailClient({ artwork, breakdown, community }: Props) {
                 </Button>
                 {artwork.status === "available" && artwork.price != null && (
                     <Button size="lg" onClick={handlePurchase} disabled={purchasing} className="h-16 text-[11px] font-bold tracking-[0.3em] uppercase rounded-none shadow-2xl">
-                        {purchasing ? "SYNCHRONISING..." : `PROCEED WITH ${convertPrice(artwork.price, artwork.currency).formatted}`}
+                        {purchasing ? "SYNCHRONISING..." : `PROCEED WITH ${mounted ? convertPrice(artwork.price, artwork.currency).formatted : ""}`}
                     </Button>
                 )}
             </div>

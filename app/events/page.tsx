@@ -3,18 +3,18 @@ import Link from "next/link";
 import { EventCard } from "@/components/events/EventCard";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { fonts } from "@/frontend/lib/utils";
 
 export default async function EventsPage() {
     // 1. Fetch data on the server
     const eventsRaw = await getEvents();
-    const toPlain = (obj: any) => JSON.parse(JSON.stringify(obj));
-    const events = toPlain(eventsRaw);
+    const events = JSON.parse(JSON.stringify(eventsRaw));
 
     return (
         <div className="container py-12 md:py-24 animate-in fade-in duration-700">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 mb-20 border-l-2 border-primary/20 pl-12 pb-4">
                 <div className="space-y-6">
-                    <h1 className="font-serif text-6xl md:text-[8rem] font-medium tracking-tighter leading-[0.8]">Gatherings</h1>
+                    <h1 className={`${fonts.display} text-6xl md:text-[8rem] font-medium tracking-tighter leading-[0.8]`}>Gatherings</h1>
                     <p className="text-xl md:text-2xl text-muted-foreground font-light italic leading-relaxed opacity-60">Curated workshops, exhibitions, and rituals.</p>
                 </div>
                 <Button asChild className="h-16 px-10 tracking-[0.3em] text-[10px] font-bold uppercase overflow-hidden group relative">

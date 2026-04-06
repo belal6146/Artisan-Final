@@ -76,21 +76,29 @@ export async function syncUserToFirestore(user: any): Promise<void> {
     }
 }
 
-export async function updateUserProfile(uid: string, rawData: any) {
-    try {
-        const data = updateProfileSchema.parse(rawData);
-        logger.info('USER_UPDATE_START', { userId: uid, source: 'backend' });
+import { getAuthorizedUser } from "@/backend/lib/auth-authority";
 
-        const userRef = doc(db, "users", uid);
+export async function updateUserProfile(rawData: any, idToken: string) {
+    try {
+        const verifiedUid = await getAuthorizedUser(idToken);
+        logger.info('USER_UPDATE_START', { userId: verifiedUid, source: 'backend' });
+
+        const data = updateProfileSchema.parse(rawData);
+        const userRef = doc(db, "users", verifiedUid);
         await updateDoc(userRef, {
             ...data,
             updatedAt: serverTimestamp()
         });
 
-        logger.info('USER_UPDATE_SUCCESS', { userId: uid, source: 'backend' });
+        logger.info('USER_UPDATE_SUCCESS', { userId: verifiedUid, source: 'backend' });
         return { success: true };
     } catch (error: any) {
-        logger.error('USER_UPDATE_FAILURE', { userId: uid, error: error.message, source: 'backend' });
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "USER_UPDATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
+        
+        logger.error('USER_UPDATE_FAILURE', { error: error.message, source: 'backend', isZod: error.name === "ZodError" });
         return { success: false, error: error.name === "ZodError" ? "Invalid profile information" : "Failed to update profile" };
     }
 }

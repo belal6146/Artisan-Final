@@ -52,17 +52,18 @@ class Logger {
     private log(level: LogLevel, event: EventName, context: LogContext) {
         const timestamp = new Date().toISOString();
         
+        const errorDetail = context.error instanceof Error ? {
+            message: context.error.message,
+            stack: context.error.stack,
+            code: (context.error as any).code
+        } : context.error;
+
         const logEntry = {
             timestamp,
             level,
             event,
             ...context,
-            error: context.error instanceof Error ? {
-                message: context.error.message,
-                name: context.error.name,
-                stack: context.error.stack,
-                code: (context.error as any).code
-            } : typeof context.error === 'object' ? JSON.parse(JSON.stringify(context.error)) : context.error
+            error: errorDetail
         };
 
         if (this.isDev) {

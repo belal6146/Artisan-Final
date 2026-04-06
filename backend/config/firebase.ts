@@ -1,8 +1,7 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getAnalytics, isSupported } from "firebase/analytics";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,24 +13,18 @@ const firebaseConfig = {
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-// Use existing app if already initialized (prevents hot-reload errors in dev)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// --- Singleton Management ---
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-import { getStorage } from "firebase/storage";
+/**
+ * 🔒 Core Database & Storage (Safe for both Client & Server Actions)
+ */
+export const db: Firestore = getFirestore(app);
+export const storage: FirebaseStorage = getStorage(app);
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+/**
+ * 🔑 Auth Hook (Client-side Only usage recommended)
+ */
+export const auth: Auth = getAuth(app);
 
-// Initialize Analytics (Client-Side Only)
-let analytics;
-if (typeof window !== "undefined") {
-    isSupported().then((supported) => {
-        if (supported) {
-            analytics = getAnalytics(app);
-        }
-    });
-}
-
-export { analytics };
+export default app;

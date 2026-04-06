@@ -1,7 +1,7 @@
 import { getArtworks } from "@/backend/actions/artwork";
 import { Globe } from "lucide-react";
 import { ExploreClient } from "@/frontend/components/art/ExploreClient";
-import { serialize, fonts } from "@/frontend/lib/serialization";
+import { fonts } from "@/frontend/lib/utils";
 
 export default async function ExplorePage() {
     // 1. Fetch initial data on server to reduce client-side delay
@@ -23,7 +23,7 @@ export default async function ExplorePage() {
                 </div>
             </div>
 
-            <ExploreClient initialArtworks={serialize(initialArtworks)} />
+            <ExploreClient initialArtworks={JSON.parse(JSON.stringify(initialArtworks))} />
         </div>
     );
 }
