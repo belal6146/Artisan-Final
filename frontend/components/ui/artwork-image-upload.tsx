@@ -12,11 +12,11 @@ import { logger } from "@/backend/lib/logger";
 
 interface ArtworkImageUploadProps {
     imageUrls: string[];
-    onImagesChange: (urls: string[]) => void;
+    onImagesChangeAction: (urls: string[]) => void;
     maxImages?: number;
 }
 
-export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages = 5 }: ArtworkImageUploadProps) {
+export function ArtworkImageUpload({ imageUrls = [], onImagesChangeAction, maxImages = 5 }: ArtworkImageUploadProps) {
     const { user } = useAuth();
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +52,7 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
                 logger.info('ARTWORK_UPDATE_SUCCESS', { fileName: file.name, source: 'frontend' });
             }
 
-            onImagesChange([...imageUrls, ...newUrls]);
+            onImagesChangeAction([...imageUrls, ...newUrls]);
         } catch (error: any) {
             logger.error('ARTWORK_UPDATE_FAILURE', { error: error.message, source: 'frontend' });
         } finally {
@@ -66,7 +66,7 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
 
     const removeImage = (indexToRemove: number) => {
         const newUrls = imageUrls.filter((_, index) => index !== indexToRemove);
-        onImagesChange(newUrls);
+        onImagesChangeAction(newUrls);
     };
 
     const makePrimary = (indexToPrimary: number) => {
@@ -74,7 +74,7 @@ export function ArtworkImageUpload({ imageUrls = [], onImagesChange, maxImages =
         const newUrls = [...imageUrls];
         const [movedImage] = newUrls.splice(indexToPrimary, 1);
         newUrls.unshift(movedImage);
-        onImagesChange(newUrls);
+        onImagesChangeAction(newUrls);
     };
 
     return (

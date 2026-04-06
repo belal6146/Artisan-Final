@@ -1,5 +1,5 @@
 import { db } from "@/backend/config/firebase";
-import { collection, addDoc, getDocs, query, orderBy, Timestamp, collectionGroup, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, orderBy, Timestamp, collectionGroup, serverTimestamp, limit } from "firebase/firestore";
 import { logger } from "@/backend/lib/logger";
 
 export interface JournalEntry {
@@ -42,19 +42,19 @@ export async function createJournalEntry(userId: string, rawData: any) {
 
 export async function getGlobalJournalEntries() {
     try {
-        const q = query(collectionGroup(db, "journal_entries"));
+        const q = query(collectionGroup(db, "journal_entries"), limit(100));
         const snap = await getDocs(q);
-        const entries = snap.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
-            } as JournalEntry;
-        });
+        const entries = snap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+        } as JournalEntry));
         
-        // Sort in code to avoid mandatory collectionGroup index requirement for MVP
-        return entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // Sort in memory to avoid collectionGroup index requirement for ordering
+        entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        logger.info('JOURNAL_FETCH_SUCCESS', { count: entries.length, source: 'backend' });
+        return entries;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { error: error.message, action: 'getGlobalJournalEntries', source: 'backend' });
         return [];
@@ -84,9 +84,11 @@ export async function getJournalEntries(userId: string) {
 
 export async function getJournalEntryById(id: string) {
     try {
-        const snap = await getDocs(query(collectionGroup(db, 'journal_entries')));
+        const q = query(collectionGroup(db, 'journal_entries'), limit(200)); // Still semi-broad to find specific leaf ID
+        const snap = await getDocs(q);
         const docSnap = snap.docs.find(d => d.id === id);
         if (!docSnap) return null;
+        
         const data = docSnap.data();
         return { 
             id: docSnap.id, 

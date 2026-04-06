@@ -115,6 +115,7 @@ export const createRSVPSchema = z.object({
 export const checkoutSchema = z.object({
     itemId: idSchema,
     type: z.enum(["artwork", "event", "support"]),
+    userId: idSchema.optional(),
 });
 
 // --- Transactions ---
@@ -125,6 +126,7 @@ export const recordTransactionSchema = z.object({
     imageUrl: z.string().url().optional().or(z.literal("")),
     amount: z.number().min(0),
     currency: currencySchema,
+    paymentIntentId: z.string().optional(),
 });
 
 // --- Notifications ---

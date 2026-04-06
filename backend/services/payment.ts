@@ -3,7 +3,7 @@ import { logger } from "@/backend/lib/logger";
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-    apiVersion: '2026-03-25.dahlia',
+    apiVersion: '2026-03-25.dahlia' as any,
 });
 
 export const PaymentService = {
@@ -29,16 +29,18 @@ export const PaymentService = {
         }
     },
 
-    async createSession(items: { id: string, title: string, price: number, currency: string }) {
+    async createSession(items: { id: string, title: string, price: number, currency: string, userId: string, type: string }) {
         try {
-            logger.info('COMMERCE_CHECKOUT_START', { itemId: items.id, source: 'backend' });
+            logger.info('COMMERCE_CHECKOUT_START', { itemId: items.id, userId: items.userId, source: 'backend' });
             
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: Math.round(items.price * 100),
                 currency: items.currency.toLowerCase(),
                 metadata: {
                     itemId: items.id,
-                    itemTitle: items.title
+                    itemTitle: items.title,
+                    userId: items.userId,
+                    type: items.type
                 },
                 automatic_payment_methods: { enabled: true }
             });

@@ -161,7 +161,8 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         try {
             const res = await fetch('/api/checkout', {
                 method: 'POST',
-                body: JSON.stringify({ itemId: profile.uid, type: 'support' }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ itemId: profile.uid, type: 'support', userId: user.uid }),
             });
 
             const { checkoutUrl } = await res.json();
@@ -323,7 +324,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                             alt={profile.displayName || "User"}
                             fill
                             sizes="(max-width: 768px) 100vw, 200px"
-                            className="object-cover grayscale md:grayscale-0"
+                            className="object-cover"
                         />
                         {isOwnProfile && isEditing && (
                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm animate-in fade-in zoom-in-95">
@@ -541,7 +542,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                                         <label className="text-sm text-muted-foreground">Images</label>
                                         <ArtworkImageUpload
                                             imageUrls={newArtwork.imageUrls}
-                                            onImagesChange={(urls) =>
+                                            onImagesChangeAction={(urls: string[]) =>
                                                 setNewArtwork({ ...newArtwork, imageUrls: urls })
                                             }
                                         />
@@ -649,7 +650,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                                             src={entry.imageUrl} 
                                             alt={entry.title} 
                                             fill 
-                                            className="object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-100 group-hover:scale-105" 
+                                            className="object-cover grayscale transition-all duration-1000 scale-100 group-hover:scale-105" 
                                         />
                                     )}
                                 </div>
@@ -740,7 +741,7 @@ function EventMiniCard({ event, isOwner }: { event: any, isOwner: boolean }) {
     if (!event) return null;
     return (
         <div className="group relative border border-border/10 rounded-none overflow-hidden bg-card hover:bg-secondary/5 transition-all">
-            <div className="aspect-video relative bg-muted grayscale group-hover:grayscale-0 transition-all duration-700">
+            <div className="aspect-video relative bg-muted grayscale transition-all duration-700">
                 {event.imageUrl ? (
                     <Image 
                         src={event.imageUrl} 
@@ -782,7 +783,7 @@ function TransactionRow({ tx }: { tx: any }) {
                             src={tx.imageUrl} 
                             alt={tx.itemTitle || tx.title} 
                             fill 
-                            className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
+                            className="object-cover grayscale transition-all duration-700" 
                         />
                     ) : (
                         <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase opacity-20">Art</div>

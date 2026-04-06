@@ -69,7 +69,8 @@ function CheckoutForm({ clientSecret, sessionId }: { clientSecret: string, sessi
                         itemTitle: searchParams.get("title") || `${type === 'event' ? 'Event Ticket' : 'Artwork'} Purchase`,
                         imageUrl: searchParams.get("imageUrl") || "",
                         amount: paymentIntent.amount / 100,
-                        currency: paymentIntent.currency.toUpperCase()
+                        currency: paymentIntent.currency.toUpperCase(),
+                        paymentIntentId: paymentIntent.id
                     });
                 } catch (err: any) {
                     logger.error('SYSTEM_ERROR', { userId: user.uid, message: "Checkout tx record failed", error: err.message, source: 'frontend' });

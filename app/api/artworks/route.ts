@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/backend/config/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
 import { logger } from '@/backend/lib/logger';
 
 export async function GET(request: Request) {
@@ -17,7 +17,8 @@ export async function GET(request: Request) {
         }
 
         // 2. Get All Artworks
-        const querySnapshot = await getDocs(collection(db, 'artworks'));
+        const q = query(collection(db, 'artworks'), orderBy('createdAt', 'desc'), limit(20));
+        const querySnapshot = await getDocs(q);
         const artworks = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         logger.info('ARTWORK_FETCH_SUCCESS', { count: artworks.length, source: 'backend' });
         return NextResponse.json(artworks);

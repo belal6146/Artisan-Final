@@ -11,7 +11,12 @@ import { createEventSchema, updateEventSchema } from "@/backend/lib/schemas";
 
 export async function getEvents(maxResults: number = 20): Promise<Event[]> {
     try {
-        const q = query(collection(db, "events"), where("status", "==", "published"), orderBy("startTime", "asc"), limit(maxResults));
+        const q = query(
+            collection(db, "events"), 
+            where("status", "==", "published"),
+            orderBy("startTime", "asc"), 
+            limit(50)
+        );
         const querySnapshot = await getDocs(q);
         const events = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -22,7 +27,7 @@ export async function getEvents(maxResults: number = 20): Promise<Event[]> {
             } as unknown as Event;
         });
         logger.info('EVENT_FETCH_SUCCESS', { count: events.length, source: 'backend' });
-        return events;
+        return events.slice(0, maxResults);
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { message: "Failed fetching published events", error: error.message, source: 'backend' });
         return [];
@@ -50,19 +55,21 @@ export async function getEventById(id: string): Promise<Event | undefined> {
 
 export async function getEventsByOrganizer(organizerId: string): Promise<Event[]> {
     try {
-        const q = query(collection(db, "events"), where("organizerId", "==", organizerId));
+        const q = query(
+            collection(db, "events"), 
+            where("organizerId", "==", organizerId),
+            orderBy("startTime", "desc"),
+            limit(100)
+        );
         const querySnapshot = await getDocs(q);
-        const events = querySnapshot.docs.map(doc => {
+        return querySnapshot.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
                 ...data,
                 createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
             } as unknown as Event;
-        })
-            .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-        logger.info('EVENT_FETCH_SUCCESS', { organizerId, count: events.length, source: 'backend' });
-        return events;
+        });
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { message: "Failed fetching organizer events", organizerId, error: error.message, source: 'backend' });
         return [];

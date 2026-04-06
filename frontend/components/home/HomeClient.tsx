@@ -6,6 +6,8 @@ import { ArtworkCard } from "@/frontend/components/art/ArtworkCard";
 import { ArrowRight, ShieldCheck, Globe, Users } from "lucide-react";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
 
+import { fonts } from "@/frontend/lib/serialization";
+
 interface HomeClientProps {
     initialArtworks: any[];
 }
@@ -14,7 +16,7 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
     const { t } = useLocale();
 
     return (
-        <div className="flex flex-col min-h-screen relative font-sans">
+        <div className={`flex flex-col min-h-screen relative ${fonts.body}`}>
             {/* Hero Section - The "Hook" */}
             <section className="relative min-h-[90vh] flex flex-col items-center justify-center py-32 overflow-hidden">
                 {/* Artistic Blur Backgrounds */}
@@ -23,7 +25,7 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
 
                 <div className="container max-w-5xl z-10 text-center space-y-16">
                 <div className="space-y-8">
-                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter text-foreground text-balance animate-in fade-in slide-in-from-bottom-8 duration-200 leading-[0.85]">
+                    <h1 className={`${fonts.display} text-8xl md:text-[10rem] font-medium text-foreground text-balance animate-in fade-in slide-in-from-bottom-8 duration-200 leading-[0.85]`}>
                         {t('home_hero_title')}
                     </h1>
                     <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl font-light leading-relaxed mx-auto italic text-pretty animate-in fade-in slide-in-from-bottom-10 duration-200 delay-75 opacity-60">
@@ -51,12 +53,12 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
                 <div className="container space-y-16">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-l-2 border-primary/10 pl-8">
                     <div className="space-y-4">
-                    <h2 className="font-serif text-4xl md:text-5xl font-medium tracking-tight">{t('featured_selection')}</h2>
+                    <h2 className={`${fonts.display} text-4xl md:text-5xl font-medium tracking-tight`}>{t('featured_selection')}</h2>
                     <p className="text-muted-foreground max-w-md text-sm leading-relaxed tracking-wide">
                         {t('featured_subtitle')}
                     </p>
                     </div>
-                    <Link href="/explore" className="text-[10px] font-bold tracking-[0.3em] uppercase border-b border-primary/20 pb-1 hover:border-primary transition-all">
+                    <Link href="/explore" className={`border-b border-primary/20 pb-1 hover:border-primary transition-all ${fonts.caps}`}>
                         {t('view_collection')}
                     </Link>
                 </div>
@@ -74,21 +76,21 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
                 <div className="container grid grid-cols-1 lg:grid-cols-3 gap-20">
                     <div className="space-y-6 p-8 border border-border/5 hover:border-border/20 transition-all">
                     <ShieldCheck className="h-8 w-8 text-primary/60 mb-8" />
-                    <h3 className="font-serif text-2xl font-medium">{t('true_transparency')}</h3>
+                    <h3 className={`${fonts.display} text-2xl font-medium`}>{t('true_transparency')}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                         {t('transparency_desc')}
                     </p>
                     </div>
                     <div className="space-y-6 p-8 border border-border/5 hover:border-border/20 transition-all">
                     <Globe className="h-8 w-8 text-primary/60 mb-8" />
-                    <h3 className="font-serif text-2xl font-medium">{t('global_connection')}</h3>
+                    <h3 className={`${fonts.display} text-2xl font-medium`}>{t('global_connection')}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                         {t('connection_desc')}
                     </p>
                     </div>
                     <div className="space-y-6 p-8 border border-border/5 hover:border-border/20 transition-all">
                     <Users className="h-8 w-8 text-primary/60 mb-8" />
-                    <h3 className="font-serif text-2xl font-medium">{t('community_owned')}</h3>
+                    <h3 className={`${fonts.display} text-2xl font-medium`}>{t('community_owned')}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                         {t('community_desc')}
                     </p>
@@ -99,7 +101,7 @@ export function HomeClient({ initialArtworks }: HomeClientProps) {
             {/* Journal CTA - The "Connection" */}
             <section className="py-48 border-t border-border/10 bg-secondary/5 relative overflow-hidden group/journal-cta">
                 <div className="container max-w-4xl text-center space-y-12 relative z-10">
-                    <h2 className="font-serif text-6xl md:text-8xl font-medium tracking-tighter leading-none group-hover/journal-cta:scale-[1.02] transition-transform duration-1000">{t('explore')} {t('journal')}</h2>
+                    <h2 className={`${fonts.display} text-6xl md:text-8xl font-medium leading-none group-hover/journal-cta:scale-[1.02] transition-transform duration-1000`}>{t('explore')} {t('journal')}</h2>
                     <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto font-light italic opacity-60">
                         {t('journal_subtitle')}
                     </p>

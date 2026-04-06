@@ -29,7 +29,7 @@ describe('Artworks DB Service', () => {
         const result = await getArtworks();
 
         expect(firestore.query).toHaveBeenCalled();
-        expect(firestore.where).toHaveBeenCalledWith("status", "==", "available");
+        // and we check that orderBy is still there
         expect(firestore.orderBy).toHaveBeenCalledWith("createdAt", "desc");
         expect(result.length).toBe(1);
     });

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
@@ -43,7 +44,13 @@ export default function RootLayout({
             <div className="flex flex-col min-h-screen">
               <Header />
               <main className="flex-1">
-                {children}
+                <Suspense fallback={
+                  <div className="min-h-[60vh] flex items-center justify-center p-20">
+                    <div className="h-4 w-4 bg-primary/20 rounded-full animate-pulse" />
+                  </div>
+                }>
+                  {children}
+                </Suspense>
               </main>
               <Footer />
             </div>

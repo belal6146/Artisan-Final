@@ -9,7 +9,7 @@ import { checkoutSchema } from '@/backend/lib/schemas';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { itemId, type } = checkoutSchema.parse(body);
+        const { itemId, type, userId } = checkoutSchema.parse(body);
 
         // 1. Validate Item or Support Action
         let itemTitle = "";
@@ -43,7 +43,9 @@ export async function POST(request: Request) {
             id: itemId,
             title: itemTitle,
             price: itemPrice,
-            currency: itemCurrency
+            currency: itemCurrency,
+            userId: userId || 'anonymous',
+            type: type
         });
 
         logger.info('COMMERCE_CHECKOUT_START', { itemId, type, sessionId, source: 'backend' });

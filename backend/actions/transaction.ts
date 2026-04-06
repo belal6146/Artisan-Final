@@ -1,9 +1,8 @@
 "use server";
 
 import { db } from "@/backend/config/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { logger } from "@/backend/lib/logger";
-
 import { recordTransactionSchema } from "@/backend/lib/schemas";
 
 export async function recordTransaction(uid: string, rawData: any) {
@@ -11,10 +10,21 @@ export async function recordTransaction(uid: string, rawData: any) {
 
     try {
         const data = recordTransactionSchema.parse(rawData);
-        logger.info('COMMERCE_CHECKOUT_SUCCESS', { userId: uid, itemId: data.itemId, source: 'backend' });
+        const txId = (data.paymentIntentId || `tx_${Date.now()}`).toString();
+        
+        // Use PaymentIntent ID as the document key for absolute idempotency
+        const txRef = doc(db, "users", uid, "transactions", txId);
+        const existing = await getDoc(txRef);
+        
+        if (existing.exists()) {
+            return { success: true, duplicated: true };
+        }
 
-        await addDoc(collection(db, "users", uid, "transactions"), {
+        logger.info('COMMERCE_CHECKOUT_SUCCESS', { userId: uid, itemId: data.itemId, txId, source: 'backend' });
+
+        await setDoc(txRef, {
             ...data,
+            id: txId,
             date: new Date().toISOString()
         });
 

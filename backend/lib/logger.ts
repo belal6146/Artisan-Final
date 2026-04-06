@@ -7,10 +7,11 @@ export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export type EventName =
     // Auth
-    | 'AUTH_LOGIN_START' | 'AUTH_LOGIN_SUCCESS' | 'AUTH_LOGIN_FAILURE' | 'AUTH_LOGOUT' | 'AUTH_SESSION_RESTORED'
+    | 'AUTH_LOGIN_START' | 'AUTH_LOGIN_SUCCESS' | 'AUTH_LOGIN_FAILURE' | 'AUTH_LOGOUT' | 'AUTH_SESSION_RESTORED' | 'AUTH_INITIALIZATION_ERROR'
     // User / Profile
     | 'USER_CREATE_START' | 'USER_CREATE_SUCCESS' | 'USER_CREATE_FAILURE'
     | 'USER_UPDATE_START' | 'USER_UPDATE_SUCCESS' | 'USER_UPDATE_FAILURE'
+    | 'USER_FETCH_SUCCESS' | 'USER_FETCH_FAILED'
     // Artwork
     | 'ARTWORK_CREATE_START' | 'ARTWORK_CREATE_SUCCESS' | 'ARTWORK_CREATE_FAILURE'
     | 'ARTWORK_UPDATE_START' | 'ARTWORK_UPDATE_SUCCESS' | 'ARTWORK_UPDATE_FAILURE'
@@ -35,8 +36,8 @@ export type EventName =
     | 'COMMERCE_CHECKOUT_START' | 'COMMERCE_CHECKOUT_SUCCESS' | 'COMMERCE_CHECKOUT_FAILURE'
     // Security
     | 'PERMISSION_CHECK' | 'PERMISSION_DENIED' | 'SECURITY_VIOLATION'
-    // System
     | 'SYSTEM_EMAIL_SENT' | 'SYSTEM_EMAIL_FAILED'
+    | 'NOTIFICATION_CREATE_SUCCESS'
     | 'SYSTEM_ERROR' | 'SYSTEM_START' | 'SYSTEM_SUCCESS' | 'SYSTEM_FAILURE';
 
 export interface LogContext {
@@ -45,26 +46,12 @@ export interface LogContext {
     [key: string]: unknown;
 }
 
-
-function safeStringify(payload: unknown, space?: number): string {
-    try {
-        return JSON.stringify(payload, null, space);
-    } catch {
-        return JSON.stringify({
-            _serialization: 'failed',
-            hint: 'Circular reference, non-JSON value, or excessive depth in log context',
-        });
-    }
-}
-
 class Logger {
     private isDev = process.env.NODE_ENV === 'development';
 
     private log(level: LogLevel, event: EventName, context: LogContext) {
         const timestamp = new Date().toISOString();
         
-        // Simple serialization without manual loop - let JSON handle standard objects
-        // and only explicitly format Error if present to avoid "clever" processing.
         const logEntry = {
             timestamp,
             level,
@@ -73,18 +60,19 @@ class Logger {
             error: context.error instanceof Error ? {
                 message: context.error.message,
                 name: context.error.name,
-                stack: context.error.stack
-            } : context.error
+                stack: context.error.stack,
+                code: (context.error as any).code
+            } : typeof context.error === 'object' ? JSON.parse(JSON.stringify(context.error)) : context.error
         };
 
         if (this.isDev) {
             const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[32m';
             console[level](
                 `${color}[${level.toUpperCase()}] ${event}\x1b[0m`,
-                safeStringify(logEntry, 2)
+                logEntry
             );
         } else {
-            console[level](safeStringify(logEntry));
+            console[level](JSON.stringify(logEntry));
         }
     }
 

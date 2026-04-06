@@ -27,7 +27,7 @@ export default async function CommunityPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
                 {artists.map((artist) => (
                     <div key={artist.uid} className="group relative bg-muted/5 border border-border/5 p-12 flex flex-col items-center text-center transition-all hover:bg-muted/10 duration-700">
-                        <div className="relative w-40 h-40 mb-10 overflow-hidden bg-muted/20 border border-border/10 grayscale group-hover:grayscale-0 transition-all duration-700">
+                        <div className="relative w-40 h-40 mb-10 overflow-hidden bg-muted/20 border border-border/10 grayscale transition-all duration-700">
                             {artist.photoURL ? (
                                 <Image
                                     src={artist.photoURL}

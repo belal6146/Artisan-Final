@@ -3,7 +3,7 @@
 import { db } from "@/backend/config/firebase";
 import { doc, getDoc, updateDoc, increment, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { logger } from "@/backend/lib/logger";
-import { createNotification } from "@/backend/lib/notifications";
+import { createNotification, alerts } from "@/backend/lib/notifications";
 import { createRSVPSchema } from "@/backend/lib/schemas";
 import { EventRSVP } from "@/types/schema";
 
@@ -97,14 +97,8 @@ export async function createRSVP(rawData: any) {
 
         await updateDoc(eventRef, { currentAttendees: increment(1) });
 
-        if (eventData.organizerId !== data.userId) {
-            await createNotification(
-                eventData.organizerId,
-                'event_rsvp',
-                `${data.userName} joined "${eventData.title}"`,
-                { eventId: data.eventId, eventTitle: eventData.title, userName: data.userName }
-            );
-        }
+        // Trigger Multi-Party Alerts (In-App + Email)
+        void alerts.onWorkshopRSVP(data.userId, data.eventId);
 
         logger.info('RSVP_CREATE_SUCCESS', { eventId: data.eventId, userId: data.userId, source: 'backend' });
         return { success: true };

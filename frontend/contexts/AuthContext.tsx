@@ -8,6 +8,8 @@ import {
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
+    setPersistence,
+    browserLocalPersistence,
     type User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "@/backend/config/firebase";
@@ -28,7 +30,7 @@ function toAuthUser(u: FirebaseUser): AuthUser {
         email: u.email,
         displayName: u.displayName,
         photoURL: u.photoURL,
-    };
+    } as any;
 }
 
 interface AuthContextType {
@@ -54,21 +56,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser ? toAuthUser(currentUser) : null);
-            setLoading(false);
+        // 🛡️ Force Persistence (Critical for ngrok/tunnel environments)
+        const initAuth = async () => {
+            try {
+                await setPersistence(auth, browserLocalPersistence);
+            } catch (error: any) {
+                logger.error('AUTH_INITIALIZATION_ERROR', { error: error.message, source: 'frontend' });
+            }
+        };
 
+        void initAuth();
+
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
                 const plain = toAuthUser(currentUser);
+                setUser(plain);
                 void syncUserToFirestore(plain).catch((e: unknown) => {
-                    const message = e instanceof Error ? e.message : String(e);
-                    logger.error("SYSTEM_ERROR", {
-                        message: "syncUserToFirestore failed after auth",
-                        error: message,
-                        source: "frontend",
-                    });
+                    logger.error("SYSTEM_ERROR", { message: "Sync failed", source: "frontend" });
                 });
+            } else {
+                setUser(null);
             }
+            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -79,7 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logger.info('AUTH_LOGIN_START', { provider: 'google', source: 'frontend' });
         try {
             const result = await signInWithPopup(auth, provider);
-            logger.info('AUTH_LOGIN_SUCCESS', { userId: result.user.uid, provider: 'google', source: 'frontend' });
+            if (result.user) {
+                setUser(toAuthUser(result.user));
+                logger.info('AUTH_LOGIN_SUCCESS', { userId: result.user.uid, provider: 'google', source: 'frontend' });
+            }
         } catch (error: any) {
             logger.error('AUTH_LOGIN_FAILURE', { provider: 'google', error: error.message, source: 'frontend' });
             throw error;

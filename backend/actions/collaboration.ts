@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/backend/config/firebase";
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, where, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, where, doc, getDoc, limit } from "firebase/firestore";
 import { logger } from "@/backend/lib/logger";
 import { Collaboration, CollaborationApplication } from "@/types/schema";
 
@@ -32,9 +32,13 @@ export async function createCollaboration(rawData: any) {
 
 export async function getCollaborations() {
     try {
-        const q = query(collection(db, "collaborations"), where("status", "==", "Open"));
+        const q = query(
+            collection(db, "collaborations"), 
+            orderBy("createdAt", "desc"),
+            limit(50)
+        );
         const snapshot = await getDocs(q);
-        const collaborations = snapshot.docs.map(doc => {
+        const results = snapshot.docs.map(doc => {
             const data = doc.data();
             return { 
                 id: doc.id, 
@@ -42,10 +46,10 @@ export async function getCollaborations() {
                 createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                 updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
             } as Collaboration;
-        });
+        }).filter(c => c.status === "Open");
         
-        collaborations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        return collaborations;
+        logger.info('COLLAB_FETCH_SUCCESS', { count: results.length, source: 'backend' });
+        return results;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { message: "Failed fetching collaborations", error: error.message, source: 'backend' });
         return [];

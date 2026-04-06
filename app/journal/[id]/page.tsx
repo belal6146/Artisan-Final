@@ -1,68 +1,27 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { getJournalEntryById } from "@/backend/actions/journal";
+import { notFound } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Loader2, BookOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { getJournalEntryById, JournalEntry } from "@/backend/actions/journal";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
-export default function JournalEntryPage() {
-    const { id } = useParams();
-    const router = useRouter();
-    const [entry, setEntry] = useState<JournalEntry | null>(null);
-    const [loading, setLoading] = useState(true);
+interface PageProps {
+    params: Promise<{ id: string }>;
+}
 
-    useEffect(() => {
-        async function load() {
-            if (!id) return;
-            const data = await getJournalEntryById(id as string);
-            setEntry(data);
-            setLoading(false);
-        }
-        load();
-    }, [id]);
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="h-8 w-8 animate-spin text-primary/20" />
-            </div>
-        );
-    }
-
-    if (!entry) {
-        return (
-            <div className="container py-40 text-center space-y-8 animate-in fade-in duration-200">
-                <div className="w-24 h-24 bg-secondary/10 flex items-center justify-center mx-auto">
-                    <BookOpen className="h-10 w-10 text-primary/20" />
-                </div>
-                <div className="space-y-4">
-                    <h1 className="font-serif text-4xl tracking-tight">Entry not found.</h1>
-                    <p className="text-muted-foreground font-light">This journal entry does not exist or was removed.</p>
-                </div>
-                <Button variant="ghost" onClick={() => router.back()}>
-                    Back
-                </Button>
-            </div>
-        );
-    }
+export default async function JournalEntryPage({ params }: PageProps) {
+    const { id } = await params;
+    const entry = await getJournalEntryById(id);
+    
+    if (!entry) notFound();
 
     return (
-        <article className="container max-w-2xl py-12 md:py-16 pb-24">
-            <div className="flex flex-wrap items-center gap-4 mb-10 text-sm text-muted-foreground">
-                <Button variant="ghost" size="sm" className="h-8 px-0 -ml-2" onClick={() => router.back()}>
-                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
-                </Button>
-                <span>·</span>
-                <Link href="/journal" className="hover:text-foreground underline-offset-4 hover:underline">
-                    All journal
-                </Link>
-            </div>
+        <article className="container max-w-2xl py-12 md:py-24 pb-32 animate-in fade-in duration-1000">
+            <Link href="/journal" className="text-[10px] font-bold tracking-[0.4em] uppercase text-muted-foreground hover:text-foreground mb-16 flex items-center group">
+                <ChevronLeft className="h-3 w-3 mr-2 group-hover:-translate-x-1 transition-transform" /> Journal
+            </Link>
 
-            <header className="space-y-4 mb-10">
-                <p className="text-sm text-muted-foreground">
+            <header className="space-y-6 mb-16 border-l-2 border-primary/10 pl-8">
+                <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-primary/40">
                     {new Date(entry.createdAt).toLocaleDateString(undefined, {
                         month: "long",
                         day: "numeric",
@@ -70,23 +29,32 @@ export default function JournalEntryPage() {
                     })}
                     {entry.category ? ` · ${entry.category}` : ""}
                 </p>
-                <h1 className="font-serif text-3xl md:text-4xl font-medium tracking-tight leading-tight">
+                <h1 className="font-serif text-5xl md:text-7xl font-medium tracking-tight leading-none text-balance">
                     {entry.title}
                 </h1>
-                <p className="text-sm text-muted-foreground">{entry.author || "Author not listed"}</p>
+                <p className="text-sm font-medium opacity-40 uppercase tracking-[0.3em]">{entry.author || "Anonymous Chronicle"}</p>
             </header>
 
             {entry.imageUrl && (
-                <div className="relative aspect-video w-full overflow-hidden bg-muted/20 mb-10">
-                    <Image src={entry.imageUrl} alt="" fill className="object-cover" priority sizes="(max-width: 768px) 100vw, 42rem" />
+                <div className="relative aspect-video w-full overflow-hidden bg-muted/20 mb-20 ring-1 ring-border/5">
+                    <Image 
+                        src={entry.imageUrl} 
+                        alt="" 
+                        fill 
+                        className="object-cover grayscale-0" 
+                        priority 
+                        sizes="(max-width: 768px) 100vw, 42rem" 
+                    />
                 </div>
             )}
 
-            <div className="text-[15px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{entry.content}</div>
+            <div className="text-xl md:text-2xl leading-relaxed text-foreground/90 font-light italic whitespace-pre-wrap selection:bg-primary/10 mb-24">
+                {entry.content}
+            </div>
 
-            <footer className="mt-16 pt-10 border-t border-border/15">
-                <Link href="/journal" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                    ← Journal
+            <footer className="mt-24 pt-12 border-t border-border/10">
+                <Link href="/journal" className="text-[10px] font-bold tracking-[0.5em] uppercase text-muted-foreground hover:text-foreground underline underline-offset-8 decoration-1 decoration-primary/20 transition-all">
+                    ← Return to Chronicles
                 </Link>
             </footer>
         </article>

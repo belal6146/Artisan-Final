@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/backend/config/firebase";
-import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, setDoc, limit, orderBy } from "firebase/firestore";
 import { logger } from "@/backend/lib/logger";
 import { updateProfileSchema, userSchema } from "@/backend/lib/schemas";
 import { User as AppUser } from "@/types";
@@ -29,9 +29,14 @@ export async function getUserById(uid: string): Promise<AppUser | null> {
 
 export async function getAllArtists(): Promise<AppUser[]> {
     try {
-        const q = query(collection(db, "users"), where("role", "==", "artist"));
+        const q = query(
+            collection(db, "users"), 
+            where("role", "==", "artist"),
+            orderBy("createdAt", "desc"),
+            limit(30)
+        );
         const snap = await getDocs(q);
-        return snap.docs.map(doc => {
+        const artists = snap.docs.map(doc => {
             const data = doc.data();
             return {
                 uid: doc.id,
@@ -39,6 +44,9 @@ export async function getAllArtists(): Promise<AppUser[]> {
                 createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
             } as AppUser;
         });
+        
+        logger.info('USER_FETCH_SUCCESS', { count: artists.length, role: 'artist', source: 'backend' });
+        return artists;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { message: "Error fetching artists", error: error.message, source: 'backend' });
         return [];

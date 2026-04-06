@@ -1,11 +1,7 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { getGlobalJournalEntries, JournalEntry } from "@/backend/actions/journal";
 import Link from "next/link";
 import Image from "next/image";
-import { getGlobalJournalEntries, JournalEntry } from "@/backend/actions/journal";
-import { useAuth } from "@/contexts/AuthContext";
+import { JournalWriteLink } from "@/frontend/components/journal/JournalWriteLink";
 
 function previewText(entry: JournalEntry): string {
     const raw = entry.excerpt?.replace(/\.\.\.$/, "").trim() || entry.content?.trim() || "";
@@ -13,63 +9,38 @@ function previewText(entry: JournalEntry): string {
     return raw.slice(0, 200).trimEnd() + "…";
 }
 
-export default function JournalPage() {
-    const { user } = useAuth();
-    const [entries, setEntries] = useState<JournalEntry[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function load() {
-            const data = await getGlobalJournalEntries();
-            setEntries(data);
-            setLoading(false);
-        }
-        load();
-    }, []);
-
-    const writeHref = user ? `/profile/${user.uid}?tab=journal` : "/auth?redirect=/journal";
+export default async function JournalPage() {
+    // 1. Fetch entries on the server
+    const entries = await getGlobalJournalEntries();
+    const toPlain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
     return (
-        <div className="container max-w-3xl py-16 md:py-20 space-y-14">
-            <header className="space-y-3">
-                <h1 className="font-serif text-4xl md:text-5xl font-medium tracking-tight">Journal</h1>
-                <p className="text-muted-foreground leading-relaxed">
-                    Notes from people who use the site. Nothing here is edited or ranked by the platform.
-                </p>
-            </header>
-
-            {loading ? (
-                <div className="flex items-center gap-3 py-16 text-muted-foreground text-sm">
-                    <Loader2 className="h-4 w-4 animate-spin opacity-40" />
-                    Loading…
-                </div>
-            ) : entries.length === 0 ? (
-                <div className="space-y-6 py-12 border-t border-border/15">
-                    <p className="text-muted-foreground leading-relaxed">
-                        No public entries yet. Journal posts are added from your profile (Journal tab) when you are signed in.
+        <div className="container py-24 space-y-24 animate-in fade-in duration-700 pb-40">
+            <div className="flex flex-col md:flex-row items-baseline justify-between gap-12 border-l-2 border-primary/20 pl-16 pb-12">
+                <div className="space-y-8 max-w-3xl">
+                    <h1 className="font-serif text-8xl md:text-[10rem] font-medium tracking-tighter leading-none">
+                        Chronicles
+                    </h1>
+                    <p className="text-2xl md:text-3xl text-muted-foreground font-light italic leading-relaxed opacity-60">
+                        Observations from our collective. Raw, unedited, and decentralized.
                     </p>
-                    <div className="flex flex-wrap gap-3 text-sm">
-                        <Link href={writeHref} className="underline underline-offset-4 hover:text-foreground text-muted-foreground">
-                            {user ? "Write from your profile" : "Sign in to write"}
-                        </Link>
-                        <span className="text-muted-foreground/40">·</span>
-                        <Link href="/explore" className="underline underline-offset-4 hover:text-foreground text-muted-foreground">
-                            Browse work
-                        </Link>
-                    </div>
+                </div>
+            </div>
+
+            {entries.length === 0 ? (
+                <div className="space-y-6 py-12 border-t border-border/10">
+                    <p className="text-muted-foreground leading-relaxed italic">
+                        No public entries yet. Chronicles are added from your profile.
+                    </p>
+                    <JournalWriteLink />
                 </div>
             ) : (
-                <ul className="space-y-12 border-t border-border/15 pt-10">
+                <ul className="space-y-20 border-t border-border/10 pt-16">
                     {entries.map((entry) => (
-                        <li
-                            key={entry.id}
-                            className={`grid gap-8 pb-12 border-b border-border/10 last:border-0 ${
-                                entry.imageUrl ? "md:grid-cols-5 md:gap-10" : ""
-                            }`}
-                        >
-                            <div className={entry.imageUrl ? "md:col-span-3" : ""}>
-                                <div className="space-y-4">
-                                    <p className="text-xs text-muted-foreground">
+                        <li key={entry.id} className="group grid gap-12 pb-20 border-b border-border/5 last:border-0 md:grid-cols-5 md:gap-16">
+                            <div className={entry.imageUrl ? "md:col-span-3" : "md:col-span-5"}>
+                                <div className="space-y-6">
+                                    <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/30">
                                         {new Date(entry.createdAt).toLocaleDateString(undefined, {
                                             year: "numeric",
                                             month: "long",
@@ -77,26 +48,26 @@ export default function JournalPage() {
                                         })}
                                         {entry.category ? ` · ${entry.category}` : ""}
                                     </p>
-                                    <h2 className="font-serif text-2xl md:text-3xl font-medium tracking-tight">
-                                        <Link href={`/journal/${entry.id}`} className="hover:underline underline-offset-4">
+                                    <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight">
+                                        <Link href={`/journal/${entry.id}`} className="hover:underline underline-offset-8 decoration-1 decoration-primary/20">
                                             {entry.title}
                                         </Link>
                                     </h2>
                                     {previewText(entry) && (
-                                        <p className="text-muted-foreground leading-relaxed text-[15px]">{previewText(entry)}</p>
+                                        <p className="text-muted-foreground leading-relaxed font-light italic text-lg">{previewText(entry)}</p>
                                     )}
-                                    <p className="text-sm text-muted-foreground">{entry.author || "Author not listed"}</p>
+                                    <p className="text-sm font-medium opacity-40 uppercase tracking-[0.2em]">{entry.author || "Anonymous Chronicle"}</p>
                                 </div>
                             </div>
                             {entry.imageUrl ? (
                                 <div className="md:col-span-2">
-                                    <div className="relative aspect-[4/3] w-full bg-muted/20 overflow-hidden">
+                                    <div className="relative aspect-[4/3] w-full bg-muted/20 overflow-hidden ring-1 ring-border/5">
                                         <Image
                                             src={entry.imageUrl}
                                             alt=""
                                             fill
-                                            className="object-cover"
-                                            sizes="(max-width: 768px) 100vw, 240px"
+                                            className="object-cover grayscale transition-all duration-1000 group-hover:scale-105 group-hover:grayscale-0"
+                                            sizes="(max-width: 768px) 100vw, 320px"
                                         />
                                     </div>
                                 </div>
@@ -106,14 +77,7 @@ export default function JournalPage() {
                 </ul>
             )}
 
-            {entries.length > 0 && (
-                <p className="text-sm text-muted-foreground pt-4 border-t border-border/15">
-                    <Link href={writeHref} className="underline underline-offset-4 hover:text-foreground">
-                        Add a post from your profile
-                    </Link>
-                </p>
-            )}
+            {entries.length > 0 && <JournalWriteLink />}
         </div>
     );
 }
-

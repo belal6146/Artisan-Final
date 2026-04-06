@@ -10,7 +10,12 @@ import { Artwork } from "@/types/schema";
 
 export async function getArtworks(maxResults: number = 20): Promise<Artwork[]> {
     try {
-        const q = query(collection(db, "artworks"), where("status", "==", "available"), orderBy("createdAt", "desc"), limit(maxResults));
+        const q = query(
+            collection(db, "artworks"), 
+            where("status", "==", "available"),
+            orderBy("createdAt", "desc"), 
+            limit(maxResults)
+        );
         const snap = await getDocs(q);
         const artworks = snap.docs.map(doc => {
             const data = doc.data();
@@ -49,7 +54,12 @@ export async function getArtworkById(id: string): Promise<Artwork | undefined> {
 
 export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> {
     try {
-        const q = query(collection(db, "artworks"), where("artistId", "==", artistId));
+        const q = query(
+            collection(db, "artworks"), 
+            where("artistId", "==", artistId),
+            orderBy("createdAt", "desc"),
+            limit(100)
+        );
         const snap = await getDocs(q);
         return snap.docs.map(doc => {
             const data = doc.data();

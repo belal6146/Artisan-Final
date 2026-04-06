@@ -65,7 +65,8 @@ export default function EventDetailPage() {
             if (event.price > 0) {
                 const res = await fetch('/api/checkout', {
                     method: 'POST',
-                    body: JSON.stringify({ itemId: event.id, type: 'event' }),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ itemId: event.id, type: 'event', userId: user.uid }),
                 });
                 const { checkoutUrl } = await res.json();
                 if (checkoutUrl) {
@@ -158,7 +159,7 @@ export default function EventDetailPage() {
                                 alt={event.title} 
                                 fill 
                                 sizes="(max-width: 768px) 100vw, 800px"
-                                className="object-cover" 
+                                className="object-cover grayscale-0" 
                                 priority 
                             />
                         )}
