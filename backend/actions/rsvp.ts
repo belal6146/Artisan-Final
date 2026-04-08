@@ -1,9 +1,9 @@
 "use server";
 
-import { db } from "@/backend/config/firebase";
-import { doc, getDoc, updateDoc, increment, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { adminDb } from "@/backend/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "@/backend/lib/logger";
-import { createNotification, alerts } from "@/backend/lib/notifications";
+import { createNotification, onWorkshopRSVP } from "@/backend/actions/notification";
 import { createRSVPSchema } from "@/backend/lib/schemas";
 import { EventRSVP } from "@/types/schema";
 
@@ -11,12 +11,15 @@ import { EventRSVP } from "@/types/schema";
 
 export async function checkUserRSVP(eventId: string, userId: string): Promise<EventRSVP | null> {
     try {
-        const q = query(collection(db, "event_rsvps"), where("eventId", "==", eventId), where("userId", "==", userId));
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) return null;
-        const data = querySnapshot.docs[0].data();
+        const snap = await adminDb.collection("event_rsvps")
+            .where("eventId", "==", eventId)
+            .where("userId", "==", userId)
+            .get();
+
+        if (snap.empty) return null;
+        const data = snap.docs[0].data();
         return { 
-            id: querySnapshot.docs[0].id, 
+            id: snap.docs[0].id, 
             ...data,
             createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
         } as unknown as EventRSVP;
@@ -28,10 +31,12 @@ export async function checkUserRSVP(eventId: string, userId: string): Promise<Ev
 
 export async function getRSVPsByEvent(eventId: string): Promise<EventRSVP[]> {
     try {
-        const q = query(collection(db, "event_rsvps"), where("eventId", "==", eventId));
-        const querySnapshot = await getDocs(q);
-        logger.info('RSVP_FETCH_SUCCESS', { eventId, count: querySnapshot.size, source: 'backend' });
-        return querySnapshot.docs.map(d => {
+        const snap = await adminDb.collection("event_rsvps")
+            .where("eventId", "==", eventId)
+            .get();
+
+        logger.info('RSVP_FETCH_SUCCESS', { eventId, count: snap.size, source: 'backend' });
+        return snap.docs.map(d => {
             const data = d.data();
             return {
                 id: d.id,
@@ -47,10 +52,13 @@ export async function getRSVPsByEvent(eventId: string): Promise<EventRSVP[]> {
 
 export async function getRSVPsByUser(userId: string): Promise<EventRSVP[]> {
     try {
-        const q = query(collection(db, "event_rsvps"), where("userId", "==", userId), where("status", "==", "going"));
-        const querySnapshot = await getDocs(q);
-        logger.info('RSVP_FETCH_SUCCESS', { userId, count: querySnapshot.size, source: 'backend' });
-        return querySnapshot.docs.map(d => {
+        const snap = await adminDb.collection("event_rsvps")
+            .where("userId", "==", userId)
+            .where("status", "==", "going")
+            .get();
+
+        logger.info('RSVP_FETCH_SUCCESS', { userId, count: snap.size, source: 'backend' });
+        return snap.docs.map(d => {
             const data = d.data();
             return {
                 id: d.id,
@@ -66,43 +74,51 @@ export async function getRSVPsByUser(userId: string): Promise<EventRSVP[]> {
 
 // --- Mutations ---
 
-export async function createRSVP(rawData: any) {
+import { getAuthorizedUser } from "@/backend/lib/auth-authority";
+
+export async function createRSVP(rawData: any, idToken: string) {
     try {
+        const verifiedUid = await getAuthorizedUser(idToken);
         const data = createRSVPSchema.parse(rawData);
-        logger.info('RSVP_CREATE_START', { eventId: data.eventId, userId: data.userId, source: 'backend' });
+        
+        logger.info('RSVP_CREATE_START', { eventId: data.eventId, userId: verifiedUid, source: 'backend' });
 
-        const eventRef = doc(db, "events", data.eventId);
-        const eventSnap = await getDoc(eventRef);
-        if (!eventSnap.exists()) throw new Error("Gathering not found");
+        const eventRef = adminDb.collection("events").doc(data.eventId);
+        const eventSnap = await eventRef.get();
+        if (!eventSnap.exists) throw new Error("Gathering not found");
 
-        const eventData = eventSnap.data();
+        const eventData = eventSnap.data()!;
 
         if (eventData.currentAttendees >= eventData.capacity) {
-            logger.warn('RSVP_CREATE_FAILURE', { userId: data.userId, eventId: data.eventId, error: "Capacity reached", source: 'backend' });
+            logger.warn('RSVP_CREATE_FAILURE', { userId: verifiedUid, eventId: data.eventId, error: "Capacity reached", source: 'backend' });
             return { success: false, error: "Capacity reached" };
         }
         
-        const existing = await checkUserRSVP(data.eventId, data.userId);
+        const existing = await checkUserRSVP(data.eventId, verifiedUid);
         if (existing) {
-             logger.warn('RSVP_CREATE_FAILURE', { userId: data.userId, eventId: data.eventId, error: "Already registered", source: 'backend' });
+             logger.warn('RSVP_CREATE_FAILURE', { userId: verifiedUid, eventId: data.eventId, error: "Already registered", source: 'backend' });
              return { success: false, error: "Already registered" };
         }
 
-        await addDoc(collection(db, "event_rsvps"), {
+        await adminDb.collection("event_rsvps").add({
             eventId: data.eventId,
-            userId: data.userId,
+            userId: verifiedUid,
             status: "going",
-            createdAt: serverTimestamp()
+            createdAt: FieldValue.serverTimestamp()
         });
 
-        await updateDoc(eventRef, { currentAttendees: increment(1) });
+        await eventRef.update({ currentAttendees: FieldValue.increment(1) });
 
         // Trigger Multi-Party Alerts (In-App + Email)
-        void alerts.onWorkshopRSVP(data.userId, data.eventId);
+        void onWorkshopRSVP(verifiedUid, data.eventId);
 
-        logger.info('RSVP_CREATE_SUCCESS', { eventId: data.eventId, userId: data.userId, source: 'backend' });
+        logger.info('RSVP_CREATE_SUCCESS', { eventId: data.eventId, userId: verifiedUid, source: 'backend' });
         return { success: true };
     } catch (error: any) {
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "RSVP_CREATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
         logger.error('RSVP_CREATE_FAILURE', { error: error.message, source: 'backend' });
         return { success: false, error: error.name === "ZodError" ? "Invalid registration data" : "Failed to join gathering" };
     }

@@ -1,6 +1,11 @@
-import { db } from "@/backend/config/firebase";
-import { collection, addDoc, getDocs, query, orderBy, Timestamp, collectionGroup, serverTimestamp, limit } from "firebase/firestore";
+"use server";
+
+import { adminDb } from "@/backend/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "@/backend/lib/logger";
+import { createJournalSchema } from "@/backend/lib/schemas";
+import { getAuthorizedUser } from "@/backend/lib/auth-authority";
+import { getUserById } from "@/backend/actions/profile";
 
 export interface JournalEntry {
     id?: string;
@@ -15,24 +20,30 @@ export interface JournalEntry {
     createdAt: string;
 }
 
-import { createJournalSchema } from "@/backend/lib/schemas";
-
-export async function createJournalEntry(userId: string, rawData: any) {
+export async function createJournalEntry(rawData: Record<string, any>, idToken: string) {
     try {
-        const data = createJournalSchema.parse(rawData);
-        logger.info('JOURNAL_CREATE_START', { userId, title: data.title, source: 'backend' });
+        const verifiedUid = await getAuthorizedUser(idToken);
+        const profile = await getUserById(verifiedUid);
         
-        const docRef = await addDoc(collection(db, "users", userId, "journal_entries"), {
-            userId,
+        const data = createJournalSchema.parse(rawData);
+        logger.info('JOURNAL_CREATE_START', { userId: verifiedUid, title: data.title, source: 'backend' });
+        
+        const docRef = await adminDb.collection("users").doc(verifiedUid).collection("journal_entries").add({
+            userId: verifiedUid,
+            author: profile?.displayName || "Anonymous Artisan",
             ...data,
             excerpt: data.content.substring(0, 160) + "...",
-            createdAt: serverTimestamp()
+            createdAt: FieldValue.serverTimestamp()
         });
         
-        logger.info('JOURNAL_CREATE_SUCCESS', { userId, entryId: docRef.id, source: 'backend' });
+        logger.info('JOURNAL_CREATE_SUCCESS', { userId: verifiedUid, entryId: docRef.id, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
-        logger.error('JOURNAL_CREATE_FAILURE', { error: error.message, userId, source: 'backend' });
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "JOURNAL_CREATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
+        logger.error('JOURNAL_CREATE_FAILURE', { error: error.message, source: 'backend' });
         return { 
             success: false, 
             error: error.name === "ZodError" ? "Invalid chronicle format" : "Failed to record chronicle" 
@@ -42,13 +53,15 @@ export async function createJournalEntry(userId: string, rawData: any) {
 
 export async function getGlobalJournalEntries() {
     try {
-        const q = query(collectionGroup(db, "journal_entries"), limit(100));
-        const snap = await getDocs(q);
-        const entries = snap.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
-        } as JournalEntry));
+        const snap = await adminDb.collectionGroup("journal_entries").limit(100).get();
+        const entries = snap.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+            } as JournalEntry;
+        });
         
         // Sort in memory to avoid collectionGroup index requirement for ordering
         entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -61,14 +74,13 @@ export async function getGlobalJournalEntries() {
     }
 }
 
-export async function getJournalEntries(userId: string) {
+export async function getJournalEntries(userId: string): Promise<JournalEntry[]> {
     try {
-        const q = query(
-            collection(db, "users", userId, "journal_entries"),
-            orderBy("createdAt", "desc")
-        );
-        const snap = await getDocs(q);
-        return snap.docs.map(doc => {
+        const snap = await adminDb.collection("users").doc(userId).collection("journal_entries")
+            .orderBy("createdAt", "desc")
+            .get();
+            
+        const entries = snap.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
@@ -76,6 +88,9 @@ export async function getJournalEntries(userId: string) {
                 createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
             } as JournalEntry;
         });
+
+        logger.info('JOURNAL_FETCH_SUCCESS', { userId, count: entries.length, source: 'backend' });
+        return entries;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { error: error.message, userId, action: 'getJournalEntries', source: 'backend' });
         return [];
@@ -84,8 +99,7 @@ export async function getJournalEntries(userId: string) {
 
 export async function getJournalEntryById(id: string) {
     try {
-        const q = query(collectionGroup(db, 'journal_entries'), limit(200)); // Still semi-broad to find specific leaf ID
-        const snap = await getDocs(q);
+        const snap = await adminDb.collectionGroup('journal_entries').limit(200).get(); 
         const docSnap = snap.docs.find(d => d.id === id);
         if (!docSnap) return null;
         
@@ -99,4 +113,4 @@ export async function getJournalEntryById(id: string) {
         logger.error('SYSTEM_ERROR', { error: error.message, id, action: 'getJournalEntryById', source: 'backend' });
         return null;
     }
-}
+}

@@ -69,12 +69,11 @@ export default function CollaborationDetailPage() {
         setApplying(true);
         setStatus("idle");
         try {
+            const idToken = await (user as any).getIdToken();
             await applyToCollaboration({
                 collaborationId: collab.id,
-                userId: user.uid,
-                userName: user.displayName || "Anonymous Artisan",
                 message: message || "I am interested in this collaboration opportunity."
-            });
+            }, idToken);
             logger.info('COLLAB_INTEREST_SUCCESS', { 
                 collabId: collab.id, 
                 authorId: collab.authorId, 

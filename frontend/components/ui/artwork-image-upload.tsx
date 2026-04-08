@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2, Star, Trash2 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
-import { storage } from "@/backend/config/firebase";
+import { storage } from "@/frontend/lib/firebase";
 import { cn } from "@/frontend/lib/utils";
 import { logger } from "@/backend/lib/logger";
 

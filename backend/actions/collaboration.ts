@@ -1,27 +1,40 @@
 "use server";
 
-import { db } from "@/backend/config/firebase";
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, where, doc, getDoc, limit } from "firebase/firestore";
+import { adminDb } from "@/backend/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "@/backend/lib/logger";
 import { Collaboration, CollaborationApplication } from "@/types/schema";
 
 import { createCollabSchema, applyCollabSchema } from "@/backend/lib/schemas";
 
-export async function createCollaboration(rawData: any) {
-    try {
-        const data = createCollabSchema.parse(rawData);
-        logger.info('COLLAB_CREATE_START', { authorId: data.authorId, title: data.title, source: 'backend' });
+import { getAuthorizedUser } from "@/backend/lib/auth-authority";
+import { getUserById } from "@/backend/actions/profile";
 
-        const docRef = await addDoc(collection(db, "collaborations"), {
+export async function createCollaboration(rawData: any, idToken: string) {
+    try {
+        const verifiedUid = await getAuthorizedUser(idToken);
+        const profile = await getUserById(verifiedUid);
+        if (!profile) throw new Error("AUTHOR_PROFILE_NOT_FOUND");
+
+        const data = createCollabSchema.parse(rawData);
+        logger.info('COLLAB_CREATE_START', { authorId: verifiedUid, title: data.title, source: 'backend' });
+
+        const docRef = await adminDb.collection("collaborations").add({
             ...data,
+            authorId: verifiedUid,
+            authorName: profile.displayName || "Anonymous Artisan",
             status: 'Open',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
         });
 
-        logger.info('COLLAB_CREATE_SUCCESS', { collaborationId: docRef.id, authorId: data.authorId, source: 'backend' });
+        logger.info('COLLAB_CREATE_SUCCESS', { collaborationId: docRef.id, authorId: verifiedUid, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "COLLAB_CREATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
         logger.error('COLLAB_CREATE_FAILURE', { error: error.message, source: 'backend' });
         return { 
             success: false, 
@@ -32,12 +45,11 @@ export async function createCollaboration(rawData: any) {
 
 export async function getCollaborations() {
     try {
-        const q = query(
-            collection(db, "collaborations"), 
-            orderBy("createdAt", "desc"),
-            limit(50)
-        );
-        const snapshot = await getDocs(q);
+        const snapshot = await adminDb.collection("collaborations")
+            .orderBy("createdAt", "desc")
+            .limit(50)
+            .get();
+
         const results = snapshot.docs.map(doc => {
             const data = doc.data();
             return { 
@@ -58,8 +70,10 @@ export async function getCollaborations() {
 
 export async function getCollaborationsByAuthorId(authorId: string) {
     try {
-        const q = query(collection(db, "collaborations"), where("authorId", "==", authorId));
-        const snapshot = await getDocs(q);
+        const snapshot = await adminDb.collection("collaborations")
+            .where("authorId", "==", authorId)
+            .get();
+
         const collaborations = snapshot.docs.map(doc => {
             const data = doc.data();
             return { 
@@ -77,45 +91,55 @@ export async function getCollaborationsByAuthorId(authorId: string) {
     }
 }
 
-export async function applyToCollaboration(rawData: any) {
+export async function applyToCollaboration(rawData: any, idToken: string) {
     try {
+        const verifiedUid = await getAuthorizedUser(idToken);
+        const profile = await getUserById(verifiedUid);
+        if (!profile) throw new Error("APPLICANT_PROFILE_NOT_FOUND");
+
         const data = applyCollabSchema.parse(rawData);
-        logger.info('COLLAB_INTEREST_START', { collaborationId: data.collaborationId, userId: data.userId, source: 'backend' });
+        const userName = profile.displayName || "Anonymous Artisan";
 
-        const collabRef = doc(db, "collaborations", data.collaborationId);
-        const collabSnap = await getDoc(collabRef);
-        if (!collabSnap.exists()) throw new Error("Collaboration call not found");
+        logger.info('COLLAB_INTEREST_START', { collaborationId: data.collaborationId, userId: verifiedUid, source: 'backend' });
 
-        await addDoc(collection(db, "collaborations", data.collaborationId, "applications"), {
-            userId: data.userId,
-            userName: data.userName,
+        const collabRef = adminDb.collection("collaborations").doc(data.collaborationId);
+        const collabSnap = await collabRef.get();
+        if (!collabSnap.exists) throw new Error("Collaboration call not found");
+
+        await collabRef.collection("applications").add({
+            userId: verifiedUid,
+            userName,
             message: data.message,
-            createdAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
             status: 'Pending'
         });
 
-        // Notification is supplementary — a delivery failure must not roll back the application
+        // Notification is supplementary
         try {
             const { createNotification } = await import("@/backend/lib/notifications");
             await createNotification(
-                collabSnap.data().authorId,
+                collabSnap.data()!.authorId,
                 'system',
-                `${data.userName} joined your call "${collabSnap.data().title}"`,
-                { collaborationId: data.collaborationId, userName: data.userName, type: 'collaboration_interest' }
+                `${userName} joined your call "${collabSnap.data()!.title}"`,
+                { collaborationId: data.collaborationId, userName, type: 'collaboration_interest' }
             );
         } catch (notifError: any) {
             logger.error('SYSTEM_EMAIL_FAILED', {
                 message: "Collaboration notification failed to deliver",
                 collaborationId: data.collaborationId,
-                userId: data.userId,
+                userId: verifiedUid,
                 error: notifError.message,
                 source: 'backend'
             });
         }
 
-        logger.info('COLLAB_INTEREST_SUCCESS', { collaborationId: data.collaborationId, userId: data.userId, source: 'backend' });
+        logger.info('COLLAB_INTEREST_SUCCESS', { collaborationId: data.collaborationId, userId: verifiedUid, source: 'backend' });
         return { success: true };
     } catch (error: any) {
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "COLLAB_APPLY_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
         logger.error('COLLAB_INTEREST_FAILURE', { error: error.message, source: 'backend' });
         return { 
             success: false, 
@@ -126,10 +150,9 @@ export async function applyToCollaboration(rawData: any) {
 
 export async function getCollaborationById(id: string) {
     try {
-        const docRef = doc(db, "collaborations", id);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) return null;
-        const data = docSnap.data();
+        const docSnap = await adminDb.collection("collaborations").doc(id).get();
+        if (!docSnap.exists) return null;
+        const data = docSnap.data()!;
         return { 
             id: docSnap.id, 
             ...data,
@@ -144,11 +167,11 @@ export async function getCollaborationById(id: string) {
 
 export async function getApplicationsByCollabId(collabId: string) {
     try {
-        const q = query(
-            collection(db, "collaborations", collabId, "applications"),
-            orderBy("createdAt", "desc")
-        );
-        const snapshot = await getDocs(q);
+        const snapshot = await adminDb.collection("collaborations").doc(collabId)
+            .collection("applications")
+            .orderBy("createdAt", "desc")
+            .get();
+
         return snapshot.docs.map(doc => {
             const data = doc.data();
             return { 

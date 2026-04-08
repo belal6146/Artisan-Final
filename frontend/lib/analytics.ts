@@ -1,5 +1,5 @@
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
-import app from "@/backend/config/firebase";
+import { app } from "@/frontend/lib/firebase";
 
 /**
  * 📊 Dynamic Analytics (Browser-Only)

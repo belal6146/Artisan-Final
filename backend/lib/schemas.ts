@@ -33,8 +33,6 @@ export const createArtworkSchema = z.object({
     imageUrls: z.array(z.string().url()).optional(),
     primaryImageIndex: z.number().int().min(0).optional(),
     medium: artworkMediumSchema.default("Other"),
-    artistId: idSchema,
-    artistName: z.string().min(1),
     location: z.string().max(200).optional(),
     isForSale: z.boolean().default(true),
     currency: currencySchema.default("GBP"),
@@ -52,7 +50,7 @@ export const createArtworkSchema = z.object({
     workValues: z.string().max(2000).optional(),
 });
 
-export const updateArtworkSchema = createArtworkSchema.partial().omit({ artistId: true });
+export const updateArtworkSchema = createArtworkSchema.partial();
 
 // --- Events ---
 export const createEventSchema = z.object({
@@ -67,11 +65,9 @@ export const createEventSchema = z.object({
     price: z.number().min(0),
     currency: currencySchema.default("GBP"),
     imageUrl: z.string().url().optional(),
-    organizerId: idSchema,
-    organizerName: z.string(),
 });
 
-export const updateEventSchema = createEventSchema.partial().omit({ organizerId: true });
+export const updateEventSchema = createEventSchema.partial();
 
 // --- Collaborations ---
 export const createCollabSchema = z.object({
@@ -85,14 +81,10 @@ export const createCollabSchema = z.object({
         amount: z.number().optional(),
         currency: currencySchema.optional(),
     }),
-    authorId: idSchema,
-    authorName: z.string(),
 });
 
 export const applyCollabSchema = z.object({
     collaborationId: idSchema,
-    userId: idSchema,
-    userName: z.string().min(1),
     message: z.string().min(10, "Message must be at least 10 characters"),
 });
 
@@ -107,8 +99,6 @@ export const createJournalSchema = z.object({
 // --- RSVPs ---
 export const createRSVPSchema = z.object({
     eventId: idSchema,
-    userId: idSchema,
-    userName: z.string(),
 });
 
 // --- Checkout ---
@@ -116,6 +106,7 @@ export const checkoutSchema = z.object({
     itemId: idSchema,
     type: z.enum(["artwork", "event", "support"]),
     userId: idSchema.optional(),
+    idToken: z.string().optional(),
 });
 
 // --- Transactions ---

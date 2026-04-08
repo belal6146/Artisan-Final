@@ -1,7 +1,7 @@
 "use server";
 
-import { db } from "@/backend/config/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { adminDb } from "@/backend/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { Event } from "@/types/schema";
 import { logger } from "@/backend/lib/logger";
 
@@ -11,14 +11,13 @@ import { createEventSchema, updateEventSchema } from "@/backend/lib/schemas";
 
 export async function getEvents(maxResults: number = 20): Promise<Event[]> {
     try {
-        const q = query(
-            collection(db, "events"), 
-            where("status", "==", "published"),
-            orderBy("startTime", "asc"), 
-            limit(50)
-        );
-        const querySnapshot = await getDocs(q);
-        const events = querySnapshot.docs.map(doc => {
+        const snap = await adminDb.collection("events")
+            .where("status", "==", "published")
+            .orderBy("startTime", "asc")
+            .limit(maxResults)
+            .get();
+
+        const events = snap.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
@@ -27,7 +26,7 @@ export async function getEvents(maxResults: number = 20): Promise<Event[]> {
             } as unknown as Event;
         });
         logger.info('EVENT_FETCH_SUCCESS', { count: events.length, source: 'backend' });
-        return events.slice(0, maxResults);
+        return events;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { message: "Failed fetching published events", error: error.message, source: 'backend' });
         return [];
@@ -36,10 +35,9 @@ export async function getEvents(maxResults: number = 20): Promise<Event[]> {
 
 export async function getEventById(id: string): Promise<Event | undefined> {
     try {
-        const docRef = doc(db, "events", id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
+        const docSnap = await adminDb.collection("events").doc(id).get();
+        if (docSnap.exists) {
+            const data = docSnap.data()!;
             return {
                 id: docSnap.id,
                 ...data,
@@ -55,14 +53,13 @@ export async function getEventById(id: string): Promise<Event | undefined> {
 
 export async function getEventsByOrganizer(organizerId: string): Promise<Event[]> {
     try {
-        const q = query(
-            collection(db, "events"), 
-            where("organizerId", "==", organizerId),
-            orderBy("startTime", "desc"),
-            limit(100)
-        );
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => {
+        const snap = await adminDb.collection("events")
+            .where("organizerId", "==", organizerId)
+            .orderBy("startTime", "desc")
+            .limit(100)
+            .get();
+
+        return snap.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
@@ -78,47 +75,65 @@ export async function getEventsByOrganizer(organizerId: string): Promise<Event[]
 
 // --- Mutations ---
 
-export async function createEvent(rawData: any) {
-    try {
-        const data = createEventSchema.parse(rawData);
-        logger.info('EVENT_CREATE_START', { organizerId: data.organizerId, title: data.title, source: 'backend' });
+import { getAuthorizedUser } from "@/backend/lib/auth-authority";
+import { getUserById } from "@/backend/actions/profile";
 
-        const docRef = await addDoc(collection(db, "events"), {
+export async function createEvent(rawData: any, idToken: string) {
+    try {
+        const verifiedUid = await getAuthorizedUser(idToken);
+        const profile = await getUserById(verifiedUid);
+        if (!profile) throw new Error("ORGANIZER_PROFILE_NOT_FOUND");
+
+        const data = createEventSchema.parse(rawData);
+        logger.info('EVENT_CREATE_START', { organizerId: verifiedUid, title: data.title, source: 'backend' });
+
+        const docRef = await adminDb.collection("events").add({
             ...data,
+            organizerId: verifiedUid,
+            organizerName: profile.displayName || "Anonymous Organizer",
             currentAttendees: 0,
             status: "published" as const,
-            createdAt: serverTimestamp()
+            createdAt: FieldValue.serverTimestamp()
         });
 
-        logger.info('EVENT_CREATE_SUCCESS', { eventId: docRef.id, organizerId: data.organizerId, source: 'backend' });
+        logger.info('EVENT_CREATE_SUCCESS', { eventId: docRef.id, organizerId: verifiedUid, source: 'backend' });
         return { success: true, id: docRef.id };
     } catch (error: any) {
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "EVENT_CREATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
         logger.error('EVENT_CREATE_FAILURE', { error: error.message, source: 'backend' });
         return { success: false, error: error.name === "ZodError" ? "Invalid gathering details" : "Failed to broadcast gathering" };
     }
 }
 
-export async function updateEvent(eventId: string, userId: string, rawData: any) {
+export async function updateEvent(eventId: string, idToken: string, rawData: any) {
     try {
+        const verifiedUid = await getAuthorizedUser(idToken);
         const data = updateEventSchema.parse(rawData);
-        logger.info('EVENT_UPDATE_START', { eventId, userId, source: 'backend' });
-        const eventRef = doc(db, "events", eventId);
-        const eventSnap = await getDoc(eventRef);
-        if (!eventSnap.exists()) throw new Error("Gathering not found");
+        logger.info('EVENT_UPDATE_START', { eventId, userId: verifiedUid, source: 'backend' });
+        const eventRef = adminDb.collection("events").doc(eventId);
+        const eventSnap = await eventRef.get();
+        if (!eventSnap.exists) throw new Error("Gathering not found");
 
-        if ((eventSnap.data() as Event).organizerId !== userId) {
-            logger.warn("PERMISSION_DENIED", { eventId, userId, source: 'backend' });
+        if ((eventSnap.data() as Event).organizerId !== verifiedUid) {
+            logger.warn("PERMISSION_DENIED", { eventId, userId: verifiedUid, source: 'backend' });
             throw new Error("Unauthorized modification");
         }
 
-        await updateDoc(eventRef, {
+        await eventRef.update({
             ...data,
-            updatedAt: serverTimestamp()
+            updatedAt: FieldValue.serverTimestamp()
         });
 
-        logger.info('EVENT_UPDATE_SUCCESS', { eventId, userId, source: 'backend' });
+        logger.info('EVENT_UPDATE_SUCCESS', { eventId, userId: verifiedUid, source: 'backend' });
         return { success: true };
     } catch (error: any) {
+        if (error.message === "UNAUTHORIZED_ACCESS_BLOCKED") {
+            logger.error('SECURITY_VIOLATION', { message: "EVENT_UPDATE_BLOCKED", source: 'backend' });
+            return { success: false, error: "Access Denied: Unverified session" };
+        }
         logger.error('EVENT_UPDATE_FAILURE', { error: error.message, source: 'backend' });
         return { success: false, error: error.name === "ZodError" ? "Invalid update data" : "Failed to update gathering" };
     }

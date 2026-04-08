@@ -12,7 +12,7 @@ import { getEventById } from "@/backend/actions/event";
 import { logger } from "@/backend/lib/logger";
 import { EventType } from "@/types/schema";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/backend/config/firebase";
+import { storage } from "@/frontend/lib/firebase";
 import { Upload, X, Loader2, ArrowLeft, Calendar } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/frontend/lib/utils";
@@ -20,7 +20,7 @@ import { cn } from "@/frontend/lib/utils";
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, getIdToken } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -175,7 +175,12 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             }
 
             logger.info('EVENT_UPDATE_START', { eventId: id, userId: user.uid, source: 'frontend' });
-            const result = await updateEvent(id, user.uid, {
+            
+            // Derive Identity via idToken
+            const idToken = await getIdToken();
+            if (!idToken) throw new Error("Session expired. Please log in again.");
+
+            const result = await updateEvent(id, idToken, {
                 title: formData.title,
                 description: formData.description,
                 type: formData.type,

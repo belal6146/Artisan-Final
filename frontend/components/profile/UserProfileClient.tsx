@@ -13,7 +13,7 @@ import { NOT_PROVIDED, textOrMissing } from "@/frontend/lib/artwork-display";
 import { cn } from "@/frontend/lib/utils";
 import { Edit2, Grid, Loader2, Calendar, Heart, Check, ArrowRight } from "lucide-react";
 import { collection, query, getDocs, where } from "firebase/firestore";
-import { db } from "@/backend/config/firebase";
+import { db } from "@/frontend/lib/firebase";
 import { ImageUpload } from "@/frontend/components/ui/image-upload";
 import { ArtworkImageUpload } from "@/frontend/components/ui/artwork-image-upload";
 import { logger } from "@/backend/lib/logger";
@@ -53,14 +53,14 @@ interface ProfileProps {
 }
 
 export function UserProfileClient({ profile, artworks }: ProfileProps) {
-    const { user } = useAuth();
+    const { user, getIdToken } = useAuth();
     const { t } = useLocale();
     const router = useRouter();
     const isOwnProfile = user?.uid === profile.uid || profile.uid === 'me';
 
     // UI state
     const [isEditing, setIsEditing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'collection' | 'journal' | 'events' | 'collaborations' | 'history'>('collection');
+    const [activeTab, setActiveTab] = useState<'collection' | 'history' | 'chronicle'>('collection');
     const [isAddingArtwork, setIsAddingArtwork] = useState(false);
     const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
     const [artworkStatus, setArtworkStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -74,8 +74,8 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
     // Data state
     const [userArtworks, setUserArtworks] = useState<any[]>(artworks);
+    const [userJournals, setUserJournals] = useState<any[]>([]);
     const [transactions, setTransactions] = useState<any[]>([]);
-    const [userCollaborations, setUserCollaborations] = useState<any[]>([]);
 
     // Form state
     const [newArtwork, setNewArtwork] = useState(INITIAL_ARTWORK_STATE);
@@ -84,12 +84,18 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         if (!user) return;
         try {
             const targetUid = profile.uid === 'me' ? user.uid : profile.uid;
-            
-            // Re-fetch artworks (Server-side query enabled)
+            if (!targetUid) return;
+
+            // 1. Re-fetch artworks (Server-side query enabled)
             const freshArtworks = await getArtworksByArtist(targetUid);
             setUserArtworks(freshArtworks);
 
-            // Transactions (Subcollection Client Read - Rules protected)
+            // 2. Journal Entries (Subcollection Client Read)
+            const journalQuery = query(collection(db, "users", targetUid, "journal_entries"));
+            const journalSnap = await getDocs(journalQuery);
+            setUserJournals(journalSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+            // 3. Transactions (Subcollection Client Read - Rules protected)
             const q = query(collection(db, "users", targetUid, "transactions"));
             const snap = await getDocs(q);
             setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -113,7 +119,9 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         if (!user) return;
         setStatus('saving');
         try {
-            const idToken = await (user as any).getIdToken();
+            const idToken = await getIdToken();
+            if (!idToken) throw new Error("No token found");
+
             const result = await updateUserProfile({
                 bio, location, avatarUrl,
                 yearsOfPractice: parseInt(yearsOfPracticeStr, 10) || 0,
@@ -135,12 +143,13 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
         if (!user) return;
         setArtworkStatus('saving');
         try {
-            const idToken = await (user as any).getIdToken();
+            const idToken = await getIdToken();
+            if (!idToken) throw new Error("No token found");
+
             const result = await createArtwork({
                 ...newArtwork,
                 price: parseFloat(newArtwork.price) || 0,
                 imageUrl: newArtwork.imageUrls[0] || "",
-                artistName: profile.displayName || "Anonymous",
             }, idToken);
 
             if (result.success) {
@@ -224,7 +233,7 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
 
             {/* Stats Overview */}
             {isOwnProfile && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/10 border-y border-border/10">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border/10 border-y border-border/10">
                     <div className="bg-background py-8 px-6 text-center">
                         <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Acquisitions</p>
                         <p className="text-3xl font-serif">£{totalSpent}</p>
@@ -237,10 +246,6 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
                         <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Cataloged</p>
                         <p className="text-3xl font-serif">{userArtworks.length}</p>
                     </div>
-                    <div className="bg-background py-8 px-6 text-center">
-                        <p className="text-[9px] uppercase tracking-[0.3em] text-muted-foreground mb-2">Collaborations</p>
-                        <p className="text-3xl font-serif">{userCollaborations.length}</p>
-                    </div>
                 </div>
             )}
 
@@ -248,11 +253,41 @@ export function UserProfileClient({ profile, artworks }: ProfileProps) {
             <div className="space-y-12">
                 <div className="flex gap-12 border-b border-border/10 pb-4 text-[11px] uppercase tracking-widest font-bold">
                     <button onClick={() => setActiveTab('collection')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'collection' ? "border-b-2 border-primary" : "opacity-40")}>Collection</button>
-                    <button onClick={() => setActiveTab('journal')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'journal' ? "border-b-2 border-primary" : "opacity-40")}>Journal</button>
-                    <button onClick={() => setActiveTab('collaborations')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'collaborations' ? "border-b-2 border-primary" : "opacity-40")}>Calls</button>
+                    <button onClick={() => setActiveTab('chronicle')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'chronicle' ? "border-b-2 border-primary" : "opacity-40")}>Chronicles</button>
                     <button onClick={() => setActiveTab('history')} className={cn("transition-all duration-500 pb-4 -mb-[17px]", activeTab === 'history' ? "border-b-2 border-primary" : "opacity-40")}>Provenance</button>
                 </div>
   
+                {activeTab === 'chronicle' && (
+                    <div className="space-y-16 py-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                        <div className="space-y-4">
+                            <h2 className="font-serif text-5xl italic opacity-30">Artisan Chronicles</h2>
+                            <p className="text-[10px] font-bold tracking-[0.4em] uppercase opacity-40">Raw observations and process narratives</p>
+                        </div>
+
+                        <div className="grid gap-12 max-w-4xl">
+                            {userJournals.map((entry) => (
+                                <div key={entry.id} className="group border-l border-border/10 pl-12 space-y-4">
+                                    <p className="text-[10px] font-bold tracking-[0.2em] uppercase opacity-30">
+                                        {new Date(entry.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                        {entry.category ? ` · ${entry.category}` : ""}
+                                    </p>
+                                    <h3 className="font-serif text-3xl font-medium">
+                                        <Link href={`/journal/${entry.id}`} className="hover:underline underline-offset-8 decoration-1 decoration-primary/20">
+                                            {entry.title}
+                                        </Link>
+                                    </h3>
+                                    <p className="text-muted-foreground leading-relaxed italic opacity-60 line-clamp-3">
+                                        {entry.excerpt || entry.content.substring(0, 160) + "..."}
+                                    </p>
+                                </div>
+                            ))}
+                            {userJournals.length === 0 && (
+                                <p className="font-serif text-2xl italic opacity-20">The archive is currently silent.</p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'history' && (
                     <div className="space-y-24 max-w-4xl py-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                         <div className="space-y-4">

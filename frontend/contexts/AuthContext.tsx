@@ -12,7 +12,7 @@ import {
     browserLocalPersistence,
     type User as FirebaseUser,
 } from "firebase/auth";
-import { auth } from "@/backend/config/firebase";
+import { auth } from "@/frontend/lib/firebase";
 import { syncUserToFirestore } from "@/backend/actions/profile";
 import { logger } from "@/backend/lib/logger";
 
@@ -40,6 +40,7 @@ interface AuthContextType {
     signInWithEmail: (email: string, password: string) => Promise<void>;
     signUpWithEmail: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
+    getIdToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -49,6 +50,7 @@ const AuthContext = createContext<AuthContextType>({
     signInWithEmail: async () => { },
     signUpWithEmail: async () => { },
     logout: async () => { },
+    getIdToken: async () => null,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -131,9 +133,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user?.uid]);
 
+    const getIdToken = useCallback(async () => {
+        if (!auth.currentUser) return null;
+        return auth.currentUser.getIdToken();
+    }, []);
+
     const value = useMemo(
-        () => ({ user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout }),
-        [user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout]
+        () => ({ user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout, getIdToken }),
+        [user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout, getIdToken]
     );
 
     return (

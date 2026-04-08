@@ -23,6 +23,7 @@ export default function CreateCollaborationPage() {
         setError(null);
 
         try {
+            const idToken = await (user as any).getIdToken();
             const result = await createCollaboration({
                 title: formData.get('title') as string,
                 description: formData.get('description') as string,
@@ -35,10 +36,7 @@ export default function CreateCollaborationPage() {
                 },
                 location: formData.get('location') as string,
                 locationType: formData.get('locationType') as any,
-                authorId: user.uid,
-                authorName: user.displayName || "Anonymous",
-                authorAvatarUrl: user.photoURL || undefined
-            });
+            }, idToken);
 
             if (result.success) {
                 router.push('/collaborate');

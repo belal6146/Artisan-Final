@@ -23,7 +23,7 @@ interface Props {
 
 export function EventDetailClient({ event: initialEvent, hasRSVPInitial }: Props) {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, getIdToken } = useAuth();
     const { convertPrice } = useLocale();
 
     const [event, setEvent] = useState(initialEvent);
@@ -61,10 +61,12 @@ export function EventDetailClient({ event: initialEvent, hasRSVPInitial }: Props
 
         try {
             if (event.price > 0) {
+                logger.info('COMMERCE_CHECKOUT_START', { itemId: event.id, type: 'event', source: 'frontend' });
+                const idToken = await getIdToken();
                 const res = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ itemId: event.id, type: 'event', userId: user.uid }),
+                    body: JSON.stringify({ itemId: event.id, type: 'event', idToken }),
                 });
                 const { checkoutUrl } = await res.json();
                 if (checkoutUrl) {
@@ -74,15 +76,17 @@ export function EventDetailClient({ event: initialEvent, hasRSVPInitial }: Props
                 throw new Error("Failed to initialize checkout");
             }
 
-            logger.info('RSVP_CREATE_START', { eventId: event.id, userId: user.uid, source: 'frontend' });
+            logger.info('RSVP_CREATE_START', { eventId: event.id, source: 'frontend' });
+            
+            const idToken = await getIdToken();
+            if (!idToken) throw new Error("Verification failed. Please log in again.");
+
             const result = await createRSVP({
                 eventId: event.id,
-                userId: user.uid,
-                userName: user.displayName || "Anonymous"
-            });
+            }, idToken);
 
             if (result.success) {
-                logger.info('RSVP_CREATE_SUCCESS', { eventId: event.id, userId: user.uid, source: 'frontend' });
+                logger.info('RSVP_CREATE_SUCCESS', { eventId: event.id, source: 'frontend' });
                 setHasRSVP(true);
                 setSuccess(true);
                 setEvent({ ...event, currentAttendees: event.currentAttendees + 1 });

@@ -9,7 +9,7 @@ import { createEvent } from "@/backend/actions/event";
 import { EventType } from "@/types/schema";
 import { logger } from "@/backend/lib/logger";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/backend/config/firebase";
+import { storage } from "@/frontend/lib/firebase";
 import { Upload, X } from "lucide-react";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import { Select } from "@/components/ui/select-minimal";
 
 export default function CreateEventPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, getIdToken } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -98,6 +98,11 @@ export default function CreateEventPage() {
 
         try {
             logger.info('EVENT_CREATE_START', { userId: user.uid, source: 'frontend' });
+            
+            // Derive Identity via idToken
+            const idToken = await getIdToken();
+            if (!idToken) throw new Error("Session expired. Please log in again.");
+
             // Upload image if provided
             let imageUrl: string | undefined = undefined;
             if (imageFile) {
@@ -121,10 +126,8 @@ export default function CreateEventPage() {
                 capacity: parseInt(formData.get('capacity') as string),
                 price: parseFloat(formData.get('price') as string) || 0,
                 currency: "EUR",
-                organizerId: user.uid,
-                organizerName: user.displayName || "Anonymous",
                 imageUrl
-            });
+            }, idToken);
 
             if (result.success) {
                 logger.info('EVENT_CREATE_SUCCESS', { userId: user.uid, eventId: result.id, source: 'frontend' });

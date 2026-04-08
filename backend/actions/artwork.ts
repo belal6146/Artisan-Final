@@ -1,7 +1,7 @@
 "use server";
 
-import { db } from "@/backend/config/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, query, where, orderBy, limit } from "firebase/firestore";
+import { adminDb } from "@/backend/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { createArtworkSchema } from "@/backend/lib/schemas";
 import { logger } from "@/backend/lib/logger";
 import { Artwork } from "@/types/schema";
@@ -10,13 +10,12 @@ import { Artwork } from "@/types/schema";
 
 export async function getArtworks(maxResults: number = 20): Promise<Artwork[]> {
     try {
-        const q = query(
-            collection(db, "artworks"), 
-            where("status", "==", "available"),
-            orderBy("createdAt", "desc"), 
-            limit(maxResults)
-        );
-        const snap = await getDocs(q);
+        const snap = await adminDb.collection("artworks")
+            .where("status", "==", "available")
+            .orderBy("createdAt", "desc")
+            .limit(maxResults)
+            .get();
+
         const artworks = snap.docs.map(doc => {
             const data = doc.data();
             return { 
@@ -34,11 +33,15 @@ export async function getArtworks(maxResults: number = 20): Promise<Artwork[]> {
 }
 
 export async function getArtworkById(id: string): Promise<Artwork | undefined> {
+    if (!id || typeof id !== 'string') {
+        logger.warn('SYSTEM_ERROR', { message: "Invalid Artwork ID requested", id, source: 'backend' });
+        return undefined;
+    }
+
     try {
-        const docRef = doc(db, "artworks", id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
+        const docSnap = await adminDb.collection("artworks").doc(id).get();
+        if (docSnap.exists) {
+            const data = docSnap.data()!;
             return { 
                 id: docSnap.id, 
                 ...data, 
@@ -47,21 +50,28 @@ export async function getArtworkById(id: string): Promise<Artwork | undefined> {
         }
         return undefined;
     } catch (error: any) {
-        logger.error('SYSTEM_ERROR', { message: `Failed to fetch artwork ${id}`, error: error.message, source: 'backend' });
+        logger.error('SYSTEM_ERROR', { 
+            message: `CRITICAL: Failed to retrieve masterpiece [${id}]`, 
+            id, 
+            error: {
+                message: error.message,
+                code: error.code,
+                stack: error.stack
+            },
+            source: 'backend' 
+        });
         return undefined;
     }
 }
 
 export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> {
     try {
-        const q = query(
-            collection(db, "artworks"), 
-            where("artistId", "==", artistId),
-            // ORDER BY removed temporarily until composite index is deployed: works: artistId ASC, createdAt DESC
-            // orderBy("createdAt", "desc"),
-            limit(100)
-        );
-        const snap = await getDocs(q);
+        const snap = await adminDb.collection("artworks")
+            .where("artistId", "==", artistId)
+            .orderBy("createdAt", "desc")
+            .limit(100)
+            .get();
+
         const artworks = snap.docs.map(doc => {
             const data = doc.data();
             return { 
@@ -71,11 +81,8 @@ export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> 
             } as Artwork;
         });
 
-        // 🛡️ Safe in-memory fallback for high-performance sort
-        const sorted = artworks.sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
-
-        logger.info('ARTWORK_FETCH_SUCCESS', { artistId, count: sorted.length, source: 'backend' });
-        return sorted;
+        logger.info('ARTWORK_FETCH_SUCCESS', { artistId, count: artworks.length, source: 'backend' });
+        return artworks;
     } catch (error: any) {
         logger.error('SYSTEM_ERROR', { 
             message: "Failed fetching artist artworks", 
@@ -91,22 +98,27 @@ export async function getArtworksByArtist(artistId: string): Promise<Artwork[]> 
 // --- Mutations ---
 
 import { getAuthorizedUser } from "@/backend/lib/auth-authority";
+import { getUserById } from "@/backend/actions/profile";
 
-export async function createArtwork(rawData: any, idToken: string) {
+export async function createArtwork(rawData: Record<string, any>, idToken: string) {
     try {
         // 1. Verify Authority & Identity
         const verifiedUid = await getAuthorizedUser(idToken);
+        const profile = await getUserById(verifiedUid);
+        if (!profile) throw new Error("ARTISAN_PROFILE_NOT_FOUND");
+
         logger.info('ARTWORK_CREATE_START', { artistId: verifiedUid, title: rawData.title, source: 'backend' });
 
-        // 2. Derive Identity (Override client-provided ID)
-        const dataPayload = { ...rawData, artistId: verifiedUid };
-        const data = createArtworkSchema.parse(dataPayload);
+        // 2. Validate Input Schema (Client Data only)
+        const data = createArtworkSchema.parse(rawData);
 
-        // 3. Save to System of Record
+        // 3. Save to System of Record with DERIVED Identity
         const { isForSale, ...rest } = data;
-        const docRef = await addDoc(collection(db, "artworks"), {
+        const docRef = await adminDb.collection("artworks").add({
             ...rest,
-            createdAt: serverTimestamp(),
+            artistId: verifiedUid,
+            artistName: profile.displayName || "Anonymous Artisan",
+            createdAt: FieldValue.serverTimestamp(),
             status: isForSale ? "available" : "collection",
             visibility: "public",
         });

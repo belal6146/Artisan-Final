@@ -70,7 +70,7 @@ class Logger {
             const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[32m';
             console[level](
                 `${color}[${level.toUpperCase()}] ${event}\x1b[0m`,
-                logEntry
+                JSON.stringify(logEntry, null, 2)
             );
         } else {
             console[level](JSON.stringify(logEntry));

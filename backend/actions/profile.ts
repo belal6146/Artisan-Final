@@ -1,7 +1,7 @@
 "use server";
 
-import { db } from "@/backend/config/firebase";
-import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, setDoc, limit, orderBy } from "firebase/firestore";
+import { adminDb } from "@/backend/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "@/backend/lib/logger";
 import { updateProfileSchema, userSchema } from "@/backend/lib/schemas";
 import { User as AppUser } from "@/types";
@@ -10,10 +10,9 @@ import { User as AppUser } from "@/types";
 
 export async function getUserById(uid: string): Promise<AppUser | null> {
     try {
-        const userRef = doc(db, "users", uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-            const data = userSnap.data();
+        const userSnap = await adminDb.collection("users").doc(uid).get();
+        if (userSnap.exists) {
+            const data = userSnap.data()!;
             return {
                 uid: userSnap.id,
                 ...data,
@@ -29,13 +28,12 @@ export async function getUserById(uid: string): Promise<AppUser | null> {
 
 export async function getAllArtists(): Promise<AppUser[]> {
     try {
-        const q = query(
-            collection(db, "users"), 
-            where("role", "==", "artist"),
-            orderBy("createdAt", "desc"),
-            limit(30)
-        );
-        const snap = await getDocs(q);
+        const snap = await adminDb.collection("users")
+            .where("role", "==", "artist")
+            .orderBy("createdAt", "desc")
+            .limit(30)
+            .get();
+            
         const artists = snap.docs.map(doc => {
             const data = doc.data();
             return {
@@ -55,12 +53,12 @@ export async function getAllArtists(): Promise<AppUser[]> {
 
 // --- Mutations ---
 
-export async function syncUserToFirestore(user: any): Promise<void> {
+export async function syncUserToFirestore(user: { uid: string; displayName: string | null; email: string | null; photoURL: string | null }): Promise<void> {
     if (!user) return;
-    const userRef = doc(db, "users", user.uid);
+    const userRef = adminDb.collection("users").doc(user.uid);
     try {
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
+        const userSnap = await userRef.get();
+        if (!userSnap.exists) {
             const userData = userSchema.parse({
                 uid: user.uid,
                 displayName: user.displayName,
@@ -68,7 +66,7 @@ export async function syncUserToFirestore(user: any): Promise<void> {
                 photoURL: user.photoURL,
                 role: "observer",
             });
-            await setDoc(userRef, { ...userData, createdAt: serverTimestamp() });
+            await userRef.set({ ...userData, createdAt: FieldValue.serverTimestamp() });
             logger.info('USER_CREATE_SUCCESS', { userId: user.uid, source: 'backend' });
         }
     } catch (error: any) {
@@ -78,16 +76,15 @@ export async function syncUserToFirestore(user: any): Promise<void> {
 
 import { getAuthorizedUser } from "@/backend/lib/auth-authority";
 
-export async function updateUserProfile(rawData: any, idToken: string) {
+export async function updateUserProfile(rawData: Record<string, any>, idToken: string) {
     try {
         const verifiedUid = await getAuthorizedUser(idToken);
         logger.info('USER_UPDATE_START', { userId: verifiedUid, source: 'backend' });
 
         const data = updateProfileSchema.parse(rawData);
-        const userRef = doc(db, "users", verifiedUid);
-        await updateDoc(userRef, {
+        await adminDb.collection("users").doc(verifiedUid).update({
             ...data,
-            updatedAt: serverTimestamp()
+            updatedAt: FieldValue.serverTimestamp()
         });
 
         logger.info('USER_UPDATE_SUCCESS', { userId: verifiedUid, source: 'backend' });

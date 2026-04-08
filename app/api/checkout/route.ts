@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
 import { PaymentService } from '@/backend/services/payment';
-import { db } from '@/backend/config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { adminDb } from '@/backend/lib/firebase-admin';
 import { logger } from '@/backend/lib/logger';
 
 import { checkoutSchema } from '@/backend/lib/schemas';
+import { getAuthorizedUser } from '@/backend/lib/auth-authority';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { itemId, type, userId } = checkoutSchema.parse(body);
+        const { itemId, type, userId, idToken } = checkoutSchema.parse(body);
+
+        // Derive Identity if token present
+        let derivedUserId = userId || 'anonymous';
+        if (idToken) {
+            try {
+                derivedUserId = await getAuthorizedUser(idToken);
+            } catch (authError) {
+                logger.warn('SECURITY_VIOLATION', { itemId, type, message: 'Unauthorized checkout attempt', source: 'backend' });
+                return NextResponse.json({ error: 'Unverified session. Please log in.' }, { status: 401 });
+            }
+        }
 
         // 1. Validate Item or Support Action
         let itemTitle = "";
@@ -23,15 +34,14 @@ export async function POST(request: Request) {
             imageUrl = "/images/support-badge.png";
         } else {
             const collectionName = type === 'artwork' ? 'artworks' : 'events';
-            const docRef = doc(db, collectionName, itemId);
-            const docSnap = await getDoc(docRef);
+            const docSnap = await adminDb.collection(collectionName).doc(itemId).get();
 
-            if (!docSnap.exists()) {
+            if (!docSnap.exists) {
                 logger.warn('SECURITY_VIOLATION', { itemId, type, message: 'Requested non-existent item', source: 'backend' });
                 return NextResponse.json({ error: 'Item not found in database' }, { status: 404 });
             }
 
-            const item = docSnap.data() as any;
+            const item = docSnap.data()!;
             itemTitle = item.title;
             itemPrice = item.price || 0;
             itemCurrency = item.currency || "GBP";
@@ -44,11 +54,10 @@ export async function POST(request: Request) {
             title: itemTitle,
             price: itemPrice,
             currency: itemCurrency,
-            userId: userId || 'anonymous',
+            userId: derivedUserId,
             type: type
         });
 
-        logger.info('COMMERCE_CHECKOUT_START', { itemId, type, sessionId, source: 'backend' });
 
         return NextResponse.json({
             checkoutUrl: `/checkout/${sessionId}?type=${type}&itemId=${itemId}&clientSecret=${clientSecret}&title=${encodeURIComponent(itemTitle)}&imageUrl=${encodeURIComponent(imageUrl)}`

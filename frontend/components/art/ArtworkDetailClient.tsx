@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocale } from "@/frontend/contexts/LocaleContext";
 import { logger } from "@/backend/lib/logger";
 
+import { getArtworkById } from "@/backend/actions/artwork";
+
 interface Props {
     artwork: any;
     breakdown: any;
@@ -26,9 +28,9 @@ export function ArtworkDetailClient({ artwork: initialArtwork, breakdown, commun
 
     useEffect(() => {
         setMounted(true);
-        const { getArtworkById } = require("@/backend/actions/artwork");
         async function revalidate() {
             try {
+                if (!artwork?.id) return;
                 const fresh = await getArtworkById(artwork.id);
                 if (fresh) setArtwork(fresh);
             } catch (e) { /* background silent */ }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { recordTransaction } from '@/backend/actions/transaction';
-import { alerts } from '@/backend/lib/notifications';
+import { onArtworkPurchase, onWorkshopRSVP } from '@/backend/lib/notifications';
 import { logger } from '@/backend/lib/logger';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -56,9 +56,9 @@ export async function POST(request: Request) {
 
                 // 3. Trigger Real-time Alerts & Emails
                 if (type === 'artwork') {
-                    void alerts.onArtworkPurchase(userId, itemId);
+                    void onArtworkPurchase(userId, itemId);
                 } else if (type === 'event') {
-                    void alerts.onWorkshopRSVP(userId, itemId);
+                    void onWorkshopRSVP(userId, itemId);
                 }
             }
             break;

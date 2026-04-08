@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Bell, Heart, Calendar, ShoppingBag, Loader2 } from "lucide-react";
 import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/backend/config/firebase";
+import { db } from "@/frontend/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/frontend/lib/utils";

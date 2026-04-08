@@ -4,9 +4,9 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2 } from "lucide-react";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
-import { storage } from "@/backend/config/firebase";
+import { storage } from "@/frontend/lib/firebase";
 
 interface ImageUploadProps {
     currentImageUrl?: string;
