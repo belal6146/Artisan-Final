@@ -28,33 +28,33 @@ export function Footer() {
                 </div>
 
                 {/* Explore Column */}
-                <div className="space-y-6">
-                    <h4 className="text-[10px] font-bold tracking-[0.3em] uppercase text-card-foreground">{t('explore')}</h4>
-                    <ul className="space-y-4">
-                        <li><Link href="/explore" className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">{t('gallery')} <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" /></Link></li>
-                        <li><Link href="/events" className="text-xs text-muted-foreground hover:text-primary transition-colors">{t('workshops')}</Link></li>
-                        <li><Link href="/collaborate" className="text-xs text-muted-foreground hover:text-primary transition-colors">{t('collaborate')}</Link></li>
-                        <li><Link href="/journal" className="text-xs text-muted-foreground hover:text-primary transition-colors">{t('journal')}</Link></li>
+                <div className="space-y-8">
+                    <h4 className="text-[11px] font-bold tracking-[0.4em] uppercase text-card-foreground opacity-30">{t('explore')}</h4>
+                    <ul className="space-y-5">
+                        <li><Link href="/explore" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors flex items-center gap-1">{t('gallery')} <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" /></Link></li>
+                        <li><Link href="/events" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">{t('workshops')}</Link></li>
+                        <li><Link href="/collaborate" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">{t('collaborate')}</Link></li>
+                        <li><Link href="/journal" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">{t('journal')}</Link></li>
                     </ul>
                 </div>
 
                 {/* Support Column */}
-                <div className="space-y-6">
-                    <h4 className="text-[10px] font-bold tracking-[0.3em] uppercase text-card-foreground">{t('support')}</h4>
-                    <ul className="space-y-4">
-                        <li><Link href="/faq" className="text-xs text-muted-foreground hover:text-primary transition-colors">FAQ</Link></li>
-                        <li><Link href="/shipping" className="text-xs text-muted-foreground hover:text-primary transition-colors">Shipping</Link></li>
-                        <li><Link href="/returns" className="text-xs text-muted-foreground hover:text-primary transition-colors">Returns</Link></li>
-                        <li><Link href="/contact" className="text-xs text-muted-foreground hover:text-primary transition-colors">Contact</Link></li>
+                <div className="space-y-8">
+                    <h4 className="text-[11px] font-bold tracking-[0.4em] uppercase text-card-foreground opacity-30">{t('support')}</h4>
+                    <ul className="space-y-5">
+                        <li><Link href="/faq" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">FAQ</Link></li>
+                        <li><Link href="/shipping" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">Shipping</Link></li>
+                        <li><Link href="/returns" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">Returns</Link></li>
+                        <li><Link href="/contact" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">Contact</Link></li>
                     </ul>
                 </div>
 
                 {/* Legal Column */}
-                <div className="space-y-6">
-                    <h4 className="text-[10px] font-bold tracking-[0.3em] uppercase text-card-foreground">{t('legal')}</h4>
-                    <ul className="space-y-4">
-                        <li><Link href="/terms" className="text-xs text-muted-foreground hover:text-primary transition-colors">Terms of Service</Link></li>
-                        <li><Link href="/privacy" className="text-xs text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link></li>
+                <div className="space-y-8">
+                    <h4 className="text-[11px] font-bold tracking-[0.4em] uppercase text-card-foreground opacity-30">{t('legal')}</h4>
+                    <ul className="space-y-5">
+                        <li><Link href="/terms" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">Terms of Service</Link></li>
+                        <li><Link href="/privacy" className="text-[11px] font-bold tracking-[0.2em] uppercase text-muted-foreground/80 hover:text-primary transition-colors">Privacy Policy</Link></li>
                     </ul>
                 </div>
             </div>

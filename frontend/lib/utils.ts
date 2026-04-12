@@ -19,6 +19,6 @@ export function formatCurrency(amount: number, currency: string = "USD"): string
  */
 export const fonts = {
   display: "font-serif tracking-tight",
-  body: "font-sans leading-relaxed",
-  caps: "text-[10px] font-bold tracking-[0.4em] uppercase",
+  body: "font-sans leading-[1.8] text-[18px] md:text-[20px]",
+  caps: "text-[11px] font-bold tracking-[0.5em] uppercase opacity-70",
 };

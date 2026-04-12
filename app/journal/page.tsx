@@ -39,8 +39,9 @@ export default async function JournalPage() {
                     {entries.map((entry) => (
                         <li key={entry.id} className="group grid gap-12 pb-20 border-b border-border/5 last:border-0 md:grid-cols-5 md:gap-16">
                             <div className={entry.imageUrl ? "md:col-span-3" : "md:col-span-5"}>
-                                <div className="space-y-6">
-                                    <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-primary/30">
+                                <div className="space-y-8">
+                                    <p className="text-[11px] font-bold tracking-[0.4em] uppercase text-primary/40 flex items-center gap-4">
+                                        <span className="h-px w-8 bg-primary/20"></span>
                                         {new Date(entry.createdAt).toLocaleDateString(undefined, {
                                             year: "numeric",
                                             month: "long",
@@ -48,15 +49,18 @@ export default async function JournalPage() {
                                         })}
                                         {entry.category ? ` · ${entry.category}` : ""}
                                     </p>
-                                    <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight">
-                                        <Link href={`/journal/${entry.id}`} className="hover:underline underline-offset-8 decoration-1 decoration-primary/20">
+                                    <h2 className="font-serif text-4xl md:text-5xl font-medium tracking-tight leading-tight">
+                                        <Link href={`/journal/${entry.id}`} className="hover:text-primary/70 transition-colors">
                                             {entry.title}
                                         </Link>
                                     </h2>
                                     {previewText(entry) && (
-                                        <p className="text-muted-foreground leading-relaxed font-light italic text-lg">{previewText(entry)}</p>
+                                        <p className="text-muted-foreground leading-relaxed font-light italic text-xl max-w-2xl">{previewText(entry)}</p>
                                     )}
-                                    <p className="text-sm font-medium opacity-40 uppercase tracking-[0.2em]">{entry.author || "Anonymous Chronicle"}</p>
+                                    <div className="pt-4 flex items-center gap-4">
+                                        <div className="h-px w-4 bg-primary/10"></div>
+                                        <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.3em]">{entry.author || "Anonymous Chronicle"}</p>
+                                    </div>
                                 </div>
                             </div>
                             {entry.imageUrl ? (

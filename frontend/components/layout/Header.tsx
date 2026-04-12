@@ -3,17 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-    User, 
-    LogOut, 
-    Menu, 
-    X, 
-    Loader2, 
-    Palette, 
-    Calendar, 
-    PenTool, 
-    Layout, 
-    Heart, 
+import {
+    User,
+    LogOut,
+    Menu,
+    X,
+    Loader2,
+    Palette,
+    Calendar,
+    PenTool,
+    Layout,
+    Heart,
     Home,
     Settings,
     Globe
@@ -64,12 +64,12 @@ export function Header() {
                 {/* Navigation - Desktop (High-Precision) */}
                 <nav className="hidden lg:flex items-center gap-12">
                     {navLinks.filter(l => l.href !== "/").map((link) => (
-                        <Link 
-                            key={link.href} 
-                            href={link.href} 
+                        <Link
+                            key={link.href}
+                            href={link.href}
                             className={cn(
-                                "text-[10px] font-bold tracking-[0.3em] transition-all hover:text-primary/70 uppercase",
-                                pathname === link.href ? "text-primary border-b border-primary/20 pb-1" : "text-muted-foreground/60"
+                                "nav-link-premium text-[12px] font-bold tracking-[0.5em] uppercase",
+                                pathname === link.href ? "text-primary opacity-100" : "text-primary/30"
                             )}
                         >
                             {link.name}
@@ -83,7 +83,7 @@ export function Header() {
                         <LocaleSwitcher />
                         <span className="h-6 w-[1px] bg-border/20" />
                     </div>
-                    
+
                     {loading ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/20" />
                     ) : user ? (
@@ -108,7 +108,7 @@ export function Header() {
                     )}
 
                     {/* 🍔 Premium Mobile Toggle */}
-                    <button 
+                    <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         className="lg:hidden h-12 w-12 flex items-center justify-end text-muted-foreground transition-all active:scale-90"
                         aria-label="Toggle menu"
@@ -122,21 +122,21 @@ export function Header() {
             {isMenuOpen && (
                 <div className="fixed inset-0 z-[100] lg:hidden">
                     {/* Darker Velvety Backdrop */}
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-700"
                         onClick={closeMenu}
                     />
-                    
+
                     {/* Drawer Content - Solid Surface */}
                     <div className="absolute right-0 top-0 h-full w-[88%] bg-background shadow-[0_0_100px_-15px_rgba(0,0,0,0.6)] animate-in slide-in-from-right duration-500 ease-out flex flex-col border-l border-border/10">
-                        
+
                         {/* Drawer Branding */}
                         <div className="flex items-center justify-between p-8 pt-10 border-b border-border/5">
                             <div className="flex flex-col">
                                 <span className="font-serif text-3xl tracking-tighter italic text-primary">Studio Hub.</span>
                                 <span className="text-[8px] font-bold tracking-[0.6em] text-muted-foreground/40 uppercase mt-1">Artisan Collective</span>
                             </div>
-                            <button 
+                            <button
                                 onClick={closeMenu}
                                 className="h-10 w-10 flex items-center justify-center rounded-full bg-secondary/20 hover:bg-secondary/30 transition-all shadow-sm"
                             >
@@ -148,9 +148,9 @@ export function Header() {
                         <div className="flex-1 overflow-y-auto px-8 pt-6 pb-20 scrollbar-hide">
                             <div className="grid gap-6">
                                 {navLinks.map((link, i) => (
-                                    <Link 
-                                        key={link.href} 
-                                        href={link.href} 
+                                    <Link
+                                        key={link.href}
+                                        href={link.href}
                                         onClick={closeMenu}
                                         className={cn(
                                             "group flex items-center justify-between p-6 rounded-none border border-border/5 bg-secondary/5 hover:bg-secondary/10 transition-all duration-300",
@@ -179,7 +179,7 @@ export function Header() {
 
                         {/* 🕹️ The Thumb-Zone Action Center (World-Class Utility) */}
                         <div className="mt-auto p-8 border-t border-border/5 bg-secondary/5 space-y-8 pb-12">
-                            
+
                             <div className="grid grid-cols-2 gap-4">
                                 {!user ? (
                                     <Link href="/auth" onClick={closeMenu} className="col-span-2">
@@ -189,15 +189,15 @@ export function Header() {
                                     </Link>
                                 ) : (
                                     <>
-                                        <Link 
-                                            href={`/profile/${user.uid}`} 
+                                        <Link
+                                            href={`/profile/${user.uid}`}
                                             onClick={closeMenu}
                                             className="flex flex-col items-center justify-center p-6 bg-background border border-border/10 group hover:border-primary/20 transition-all h-24"
                                         >
                                             <User className="h-4 w-4 text-muted-foreground group-hover:text-primary mb-3" />
                                             <span className="text-[8px] font-bold tracking-[0.3em] uppercase text-muted-foreground/40 group-hover:text-primary transition-all">MY STUDIO</span>
                                         </Link>
-                                        <button 
+                                        <button
                                             onClick={() => { logout(); closeMenu(); }}
                                             className="flex flex-col items-center justify-center p-6 bg-background border border-border/10 group hover:border-destructive/20 transition-all h-24"
                                         >

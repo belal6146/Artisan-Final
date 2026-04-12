@@ -65,20 +65,19 @@ export function ArtworkCard({ artwork, className, priority = false }: ArtworkCar
                         </h3>
                     </Link>
                     <span className={cn(
-                        "text-[9px] font-bold tracking-[0.2em] uppercase px-2 py-0.5 rounded-none border self-start mt-1.5",
-                        artwork.status === 'available' ? "border-primary/20 text-primary" : "border-muted-foreground/20 text-muted-foreground"
+                        "text-[11px] font-bold tracking-[0.3em] uppercase px-3 py-1 bg-background/50 border self-start mt-1",
+                        artwork.status === 'available' ? "border-primary/20 text-primary" : "border-muted-foreground/20 text-muted-foreground/40"
                     )}>
                         {artwork.status === 'available' ? t('available') : t('collected')}
                     </span>
                 </div>
 
-                <div className="flex justify-between items-center pt-3 border-t border-border/10">
-                    <Link href={`/profile/${artwork.artistId}`} className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-bold tracking-[0.1em] uppercase">
-                        {artwork.artistName}
+                <div className="flex justify-between items-center pt-3 border-t border-primary/5">
+                    <Link href={`/profile/${artwork.artistId}`} className="text-[12px] text-primary/60 hover:text-primary transition-colors font-bold tracking-[0.2em] uppercase italic">
+                        BY {artwork.artistName}
                     </Link>
-                    <p className="text-[10px] text-muted-foreground/40 font-medium tracking-tight">
-                        {artwork.medium ?? "Other"}
-                        {artwork.location ? ` / ${artwork.location}` : ""}
+                    <p className="text-[11px] text-muted-foreground/30 font-medium tracking-widest uppercase">
+                        {artwork.medium ?? "N/A"}
                     </p>
                 </div>
 

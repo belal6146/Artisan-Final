@@ -38,58 +38,46 @@
 
 /* Artisan Palette - Warm, Human, Trustworthy */
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(240 10% 3.9%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(240 10% 3.9%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(240 10% 3.9%);
-  --primary: hsl(240 5.9% 10%);
-  --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(240 4.8% 95.9%);
-  --secondary-foreground: hsl(240 5.9% 10%);
-  --muted: hsl(240 4.8% 95.9%);
-  --muted-foreground: hsl(240 3.8% 46.1%);
-  --accent: hsl(240 4.8% 95.9%);
-  --accent-foreground: hsl(240 5.9% 10%);
+  --background: hsl(40 20% 98%); /* Warm Bone Background */
+  --foreground: hsl(0 0% 12%);   /* Deep Charcoal */
+  --card: hsl(40 20% 98%);
+  --card-foreground: hsl(0 0% 12%);
+  --popover: hsl(40 20% 98%);
+  --popover-foreground: hsl(0 0% 12%);
+  --primary: hsl(24 20% 15%);    /* Deep Earthy Primary */
+  --primary-foreground: hsl(40 20% 98%);
+  --secondary: hsl(40 10% 94%);
+  --secondary-foreground: hsl(24 20% 15%);
+  --muted: hsl(40 10% 90%);
+  --muted-foreground: hsl(0 0% 45%);
+  --accent: hsl(40 10% 94%);
+  --accent-foreground: hsl(24 20% 15%);
   --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(0 0% 98%);
-  --border: hsl(240 5.9% 90%);
-  --input: hsl(240 5.9% 90%);
-  --ring: hsl(240 5.9% 10%);
+  --border: hsl(40 10% 88%);
+  --input: hsl(40 10% 88%);
+  --ring: hsl(24 20% 15%);
   --radius: 0;
-  --chart-1: hsl(12 76% 61%);
-  --chart-2: hsl(173 58% 39%);
-  --chart-3: hsl(197 37% 24%);
-  --chart-4: hsl(43 74% 66%);
-  --chart-5: hsl(27 87% 67%);
 }
 
 .dark {
-  --background: hsl(240 10% 3.9%);
-  --foreground: hsl(0 0% 98%);
-  --card: hsl(240 10% 3.9%);
-  --card-foreground: hsl(0 0% 98%);
-  --popover: hsl(240 10% 3.9%);
-  --popover-foreground: hsl(0 0% 98%);
-  --primary: hsl(0 0% 98%);
-  --primary-foreground: hsl(240 5.9% 10%);
-  --secondary: hsl(240 3.7% 15.9%);
-  --secondary-foreground: hsl(0 0% 98%);
-  --muted: hsl(240 3.7% 15.9%);
-  --muted-foreground: hsl(240 5% 64.9%);
-  --accent: hsl(240 3.7% 15.9%);
-  --accent-foreground: hsl(0 0% 98%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --border: hsl(240 3.7% 15.9%);
-  --input: hsl(240 3.7% 15.9%);
-  --ring: hsl(240 4.9% 83.9%);
-  --chart-1: hsl(220 70% 50%);
-  --chart-2: hsl(160 60% 45%);
-  --chart-3: hsl(30 80% 55%);
-  --chart-4: hsl(280 65% 60%);
-  --chart-5: hsl(340 75% 55%);
+  --background: hsl(24 20% 5%);
+  --foreground: hsl(40 10% 95%);
+  --card: hsl(24 20% 5%);
+  --card-foreground: hsl(40 10% 95%);
+  --popover: hsl(24 20% 5%);
+  --popover-foreground: hsl(40 10% 95%);
+  --primary: hsl(40 10% 95%);
+  --primary-foreground: hsl(24 20% 5%);
+  --secondary: hsl(24 20% 12%);
+  --secondary-foreground: hsl(40 10% 95%);
+  --muted: hsl(24 20% 12%);
+  --muted-foreground: hsl(0 0% 65%);
+  --accent: hsl(24 20% 12%);
+  --accent-foreground: hsl(40 10% 95%);
+  --border: hsl(24 20% 15%);
+  --input: hsl(24 20% 15%);
+  --ring: hsl(40 10% 90%);
 }
 
 body {
@@ -102,7 +90,10 @@ body {
   flex-direction: column;
   min-height: 100vh;
   scroll-behavior: smooth;
-  line-height: 1.6;
+  line-height: 1.8;
+  /* Paper Texture Overlay */
+  background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+  background-attachment: fixed;
 }
 
 ::selection {
@@ -110,71 +101,59 @@ body {
   color: var(--primary-foreground);
 }
 
-/* Premium Typography Utilities */
+/* Premium Navigation & Interactive States */
+.nav-link-premium {
+  @apply relative transition-all duration-700 hover:tracking-[0.6em] hover:text-primary;
+}
+
+.button-artisan {
+  @apply inline-flex items-center justify-center transition-all duration-500 hover:scale-[1.02] active:scale-95 border border-primary/20 hover:border-primary/50;
+}
+
+/* Typographic Mastery */
 .text-balance {
   text-wrap: balance;
 }
 
-.text-pretty {
-  text-wrap: pretty;
+.text-prose {
+  max-width: 65ch;
 }
 
-.tracking-widest-plus {
-  letter-spacing: 0.25em;
+/* Editorial Dividers */
+.divider-artisan {
+  @apply h-px w-full bg-gradient-to-r from-transparent via-primary/20 to-transparent my-16;
 }
 
-/* Glassmorphism Standard */
-.glass {
-  @apply bg-background/60 backdrop-blur-xl border border-border/10 shadow-sm;
-}
-
-/* Hover Shine Effect for Cards */
-.hover-shine {
-  position: relative;
-  overflow: hidden;
-}
-
-.hover-shine::after {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    45deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 100%
-  );
-  transition: transform 0.8s ease-in-out;
-  transform: scale(0);
-}
-
-.hover-shine:hover::after {
-  transform: scale(1);
-}
-
-/* Custom Container for "State of the Art" Centering - Expansive & Intentional */
+/* Custom Container for Panoramic Storytelling */
 .container {
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  max-width: 1760px; /* Expansive width for high-end cinematic scaling */
-  padding-left: 2rem;
-  padding-right: 2rem;
+  max-width: 1600px;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .container {
-    padding-left: 4rem;
-    padding-right: 4rem;
+    padding-left: 3rem;
+    padding-right: 3rem;
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .container {
-    padding-left: 6rem;
-    padding-right: 6rem;
+    padding-left: 5rem;
+    padding-right: 5rem;
   }
+}
+
+/* Micro-Animations [Friction] */
+.fade-up-view {
+  animation: fadeUp 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
